@@ -32,7 +32,7 @@ class OwnerDashboardScreen extends ConsumerWidget {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            _buildHeader(context, user?.displayName),
+            _buildHeader(context, ref, user?.displayName),
             const SizedBox(height: 20),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20.0),
@@ -95,7 +95,7 @@ class OwnerDashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildHeader(BuildContext context, String? userName) {
+  Widget _buildHeader(BuildContext context, WidgetRef ref, String? userName) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(20, 60, 20, 40),
@@ -117,14 +117,32 @@ class OwnerDashboardScreen extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Welcome back,',
-            style: GoogleFonts.inter(color: Colors.white70, fontSize: 16),
-          ),
-          const SizedBox(height: 5),
-          Text(
-            userName ?? 'Owner',
-            style: GoogleFonts.poppins(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Welcome back,',
+                    style: GoogleFonts.inter(color: Colors.white70, fontSize: 16),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    userName ?? 'Owner',
+                    style: GoogleFonts.poppins(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              IconButton(
+                onPressed: () async {
+                  await ref.read(authRepositoryProvider).signOut();
+                  // Router should handle redirect to login automatically via stream
+                },
+                icon: const Icon(Icons.logout, color: Colors.white),
+                tooltip: 'Sign Out',
+              ),
+            ],
           ),
           const SizedBox(height: 20),
           Container(
@@ -273,8 +291,10 @@ class RecentRequestsWidget extends ConsumerWidget {
       data: (requests) {
         if (requests.isEmpty) return const SizedBox.shrink();
         
-        final openRequests = requests.where((r) => r.status == 'open').toList();
-        if (openRequests.isEmpty) return const SizedBox.shrink();
+        if (requests.isEmpty) return const SizedBox.shrink();
+        
+        // Show all recent requests, regardless of status
+        final recentRequests = requests;
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -284,7 +304,7 @@ class RecentRequestsWidget extends ConsumerWidget {
               style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.black87),
             ),
             const SizedBox(height: 12),
-            ...openRequests.take(3).map((request) => _buildRequestCard(context, ref, request)),
+            ...recentRequests.take(3).map((request) => _buildRequestCard(context, ref, request)),
           ],
         );
       },

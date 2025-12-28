@@ -113,18 +113,26 @@ class FirestoreInvoiceRepository implements InvoiceRepository {
     return _firestore
         .collection('invoices')
         .where('residentId', isEqualTo: residentId)
-        .orderBy('createdAt', descending: true)
+        // .orderBy('createdAt', descending: true) // Moved to client-side
         .snapshots()
-        .map((s) => s.docs.map((d) => InvoiceModel.fromJson(d.data() as Map<String, dynamic>)).toList());
+        .map((s) {
+           final list = s.docs.map((d) => InvoiceModel.fromJson(d.data() as Map<String, dynamic>)).toList();
+           list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+           return list;
+        });
   }
 
   Stream<List<InvoiceModel>> getFlatInvoices(String flatId) {
     return _firestore
         .collection('invoices')
         .where('flatId', isEqualTo: flatId)
-        .orderBy('createdAt', descending: true)
+        // .orderBy('createdAt', descending: true) // Moved to client-side
         .snapshots()
-        .map((s) => s.docs.map((d) => InvoiceModel.fromJson(d.data() as Map<String, dynamic>)).toList());
+        .map((s) {
+           final list = s.docs.map((d) => InvoiceModel.fromJson(d.data() as Map<String, dynamic>)).toList();
+           list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+           return list;
+        });
   }
 
   @override

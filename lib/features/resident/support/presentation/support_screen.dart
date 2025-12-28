@@ -6,6 +6,7 @@ import 'package:amar_bari/models/request_model.dart';
 import 'package:uuid/uuid.dart';
 import '../../home/data/resident_repository.dart';
 import '../../requests/data/request_repository.dart';
+import '../../../auth/data/user_repository.dart';
 
 class SupportScreen extends ConsumerStatefulWidget {
   final String requestType; // 'support' or 'service'
@@ -98,10 +99,23 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final ownerId = data?.property?.ownerId;
+      var ownerId = data?.property?.ownerId;
+      var propertyId = data?.property?.id;
+      final flatId = data?.flat?.id;
       
       if (ownerId == null) {
-        throw 'Cannot find property owner. Please ensure you are linked to a property.';
+        // Fallback: If not linked to a property, try to find the "main" owner (e.g. for general inquiries/requests)
+        // This assumes single-owner or admin scenario primarily, or user wants to contact ANY owner.
+        // For MVP/Demo: Fetch the first user with role 'owner'.
+        final userRepo = ref.read(userRepositoryProvider);
+        final defaultOwner = await userRepo.getFirstOwner();
+        
+        if (defaultOwner != null) {
+          ownerId = defaultOwner.uid;
+          // Leave propertyId/flatId null
+        } else {
+           throw 'Cannot find property owner. Please ensure an owner exists in the system.';
+        }
       }
 
       final request = RequestModel(
@@ -109,8 +123,8 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
         type: widget.requestType,
         tenantId: user.uid,
         ownerId: ownerId,
-        propertyId: data?.property?.id,
-        flatId: data?.flat?.id,
+        propertyId: propertyId,
+        flatId: flatId,
         title: _subjectController.text.trim(),
         message: _messageController.text.trim(),
         createdAt: DateTime.now(),

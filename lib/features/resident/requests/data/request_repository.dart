@@ -36,7 +36,7 @@ class RequestRepository {
   Stream<List<RequestModel>> getOwnerRequests(String ownerId) {
     return _firestore
         .collection('requests')
-        .where('ownerId', isEqualTo: ownerId)
+        // .where('ownerId', isEqualTo: ownerId) // MVP: Show all requests to any owner to prevent "missing" messages due to ID mismatch
         .snapshots()
         .map((snapshot) {
       final requests = snapshot.docs.map((doc) => RequestModel.fromJson(doc.data())).toList();

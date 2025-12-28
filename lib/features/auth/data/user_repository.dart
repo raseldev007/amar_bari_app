@@ -11,6 +11,8 @@ abstract class UserRepository {
   Future<void> updateUserRole(String uid, String role);
   Future<void> updateUser(UserModel user);
   Future<String> uploadProfilePhoto(String uid, XFile file);
+  Future<UserModel?> getFirstOwner();
+  Future<UserModel?> getUserByEmail(String email);
 }
 
 class FirestoreUserRepository implements UserRepository {
@@ -56,6 +58,28 @@ class FirestoreUserRepository implements UserRepository {
     
     final snapshot = await uploadTask;
     return await snapshot.ref.getDownloadURL();
+  }
+
+  Future<UserModel?> getFirstOwner() async {
+    final snapshot = await _firestore
+        .collection('users')
+        .where('role', isEqualTo: 'owner')
+        .limit(1)
+        .get();
+        
+    if (snapshot.docs.isEmpty) return null;
+    return UserModel.fromJson(snapshot.docs.first.data());
+  }
+
+  Future<UserModel?> getUserByEmail(String email) async {
+    final snapshot = await _firestore
+        .collection('users')
+        .where('email', isEqualTo: email)
+        .limit(1)
+        .get();
+        
+    if (snapshot.docs.isEmpty) return null;
+    return UserModel.fromJson(snapshot.docs.first.data());
   }
 }
 

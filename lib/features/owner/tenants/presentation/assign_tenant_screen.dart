@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 import '../../../../models/flat_model.dart';
 import '../../../../models/lease_model.dart';
 import '../../../auth/data/auth_repository.dart';
+import '../../../auth/data/user_repository.dart';
 import '../../tenants/data/lease_repository.dart';
 
 class AssignTenantScreen extends ConsumerStatefulWidget {
@@ -31,12 +32,33 @@ class _AssignTenantScreenState extends ConsumerState<AssignTenantScreen> {
   bool _isLoading = false;
 
   Future<void> _assignTenant() async {
-    if (_uidController.text.isEmpty) return;
+    final input = _uidController.text.trim();
+    if (input.isEmpty) return;
 
     setState(() => _isLoading = true);
     try {
       final ownerUser = ref.read(authRepositoryProvider).currentUser;
       if (ownerUser == null) return;
+
+      // 1. Resolve Resident (Search by Email or ID)
+      String residentId = input;
+      final userRepo = ref.read(userRepositoryProvider);
+      
+      if (input.contains('@')) {
+        // Assume email
+        final user = await userRepo.getUserByEmail(input);
+        if (user == null) {
+          throw 'User with email $input not found.';
+        }
+        residentId = user.uid;
+      } else {
+        // Assume UID
+        final user = await userRepo.getUser(input);
+        if (user == null) {
+          throw 'User with ID $input not found.';
+        }
+        residentId = user.uid;
+      }
 
       final leaseRepo = ref.read(leaseRepositoryProvider);
       
@@ -45,7 +67,7 @@ class _AssignTenantScreenState extends ConsumerState<AssignTenantScreen> {
         ownerId: ownerUser.uid,
         propertyId: widget.propertyId,
         flatId: widget.flatId,
-        residentId: _uidController.text.trim(),
+        residentId: residentId,
         startDate: DateTime.now(),
         createdAt: DateTime.now(),
         status: 'active',
@@ -56,8 +78,7 @@ class _AssignTenantScreenState extends ConsumerState<AssignTenantScreen> {
       if (mounted) {
         // Pop back to Flat Details
         context.pop(); 
-        // Force refresh of flat details? 
-        // The stream provider should auto refresh.
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Resident assigned successfully!')));
       }
     } catch (e) {
       if (mounted) {
@@ -85,9 +106,9 @@ class _AssignTenantScreenState extends ConsumerState<AssignTenantScreen> {
             TextField(
               controller: _uidController,
               decoration: const InputDecoration(
-                labelText: 'Resident User ID (UID)',
+                labelText: 'Resident Email or User ID (UID)',
                 border: OutlineInputBorder(),
-                helperText: 'Paste the resident\'s UID here',
+                helperText: 'Enter the resident\'s Email or UID to assign them.',
               ),
             ),
             const SizedBox(height: 24),
