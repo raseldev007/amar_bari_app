@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "463077511300",
+    "project_id": "amar-bari-app-by-rasel",
+    "storage_bucket": "amar-bari-app-by-rasel.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:463077511300:android:36c568ca491d8b19c132d1",
+        "android_client_info": {
+          "package_name": "com.rasel.amarbari"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "463077511300-n6krtuqqp9agog87k9cg9okjmppr1qh8.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDQMQaiXie8G-A_v52wooFizvTgIh2j8VM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "463077511300-n6krtuqqp9agog87k9cg9okjmppr1qh8.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
