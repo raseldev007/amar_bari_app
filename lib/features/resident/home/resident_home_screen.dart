@@ -12,6 +12,7 @@ import '../../owner/invoices/data/invoice_repository.dart';
 
 import 'package:amar_bari/core/common_widgets/app_footer.dart';
 import 'package:amar_bari/models/request_model.dart';
+import 'package:amar_bari/models/flat_model.dart'; // Added missing import
 
 class ResidentHomeScreen extends ConsumerWidget {
   const ResidentHomeScreen({super.key});
@@ -35,7 +36,16 @@ class ResidentHomeScreen extends ConsumerWidget {
                     children: [
                       const SizedBox(height: 20),
                       
+                      // Detailed Flat Info Card
+                      if (data.flat != null) 
+                        _buildFlatDetailsCard(context, data.flat!),
+
+                      const SizedBox(height: 10),
+                      
                       // State-based Content
+                      _buildOutstandingDuesCard(context, data.outstandingAmount),
+                      const SizedBox(height: 15),
+
                       if (data.state == ResidentHomeState.invoiceExists)
                         _buildBillCard(context, data.currentInvoice)
                       else if (data.state == ResidentHomeState.assignedNoInvoice)
@@ -412,6 +422,91 @@ class ResidentHomeScreen extends ConsumerWidget {
     );
   }
 
+  Widget _buildFlatDetailsCard(BuildContext context, FlatModel flat) {
+    double totalExpenses = flat.rentBase;
+    flat.utilities.forEach((_, amount) => totalExpenses += amount);
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.08),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          tilePadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+          leading: Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFE3F2FD),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.home_work_outlined, color: Color(0xFF1976D2)),
+          ),
+          title: Text(
+            'My Apartment Info',
+            style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 16),
+          ),
+          subtitle: Text(
+            'Flat ${flat.label} • Est. ৳${totalExpenses.toStringAsFixed(0)}/mo',
+            style: GoogleFonts.inter(color: Colors.grey[600], fontSize: 13),
+          ),
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+              child: Column(
+                children: [
+                  const Divider(),
+                  const SizedBox(height: 8),
+                  _buildExpenseRow('Base Rent', flat.rentBase, isBold: true),
+                  const SizedBox(height: 8),
+                  ...flat.utilities.entries.map((e) => Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: _buildExpenseRow('${e.key} Bill', e.value),
+                  )),
+                  const Divider(),
+                  _buildExpenseRow('Total Monthly Liability', totalExpenses, isTotal: true),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildExpenseRow(String label, double amount, {bool isBold = false, bool isTotal = false}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.inter(
+            fontSize: 14,
+            fontWeight: isBold || isTotal ? FontWeight.w600 : FontWeight.w400,
+            color: isTotal ? Colors.black : Colors.grey[700],
+          ),
+        ),
+        Text(
+          '৳${amount.toStringAsFixed(0)}',
+          style: GoogleFonts.inter(
+            fontSize: isTotal ? 16 : 14,
+            fontWeight: isBold || isTotal ? FontWeight.bold : FontWeight.w500,
+            color: isTotal ? const Color(0xFF1976D2) : Colors.black87,
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildActionButton(BuildContext context, Map<String, dynamic> action) {
     return GestureDetector(
       onTap: () {
@@ -541,6 +636,90 @@ class ResidentHomeScreen extends ConsumerWidget {
              const SizedBox(height: 20),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildOutstandingDuesCard(BuildContext context, double amount) {
+    if (amount <= 0) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.green.shade50,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.green.shade200),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.check_circle, color: Colors.green),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'You have no outstanding dues. Great job!',
+                style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.green.shade800),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.red.shade50,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.red.shade100),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(color: Colors.red.shade100, shape: BoxShape.circle),
+                child: const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 24),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Outstanding Dues',
+                      style: GoogleFonts.inter(color: Colors.red.shade800, fontSize: 13, fontWeight: FontWeight.w500),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '৳${amount.toStringAsFixed(0)}',
+                      style: GoogleFonts.poppins(color: Colors.red.shade900, fontSize: 24, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () {
+                // Navigate to My Invoices Screen
+                // context.push('/resident/invoices'); // Assuming this route exists, or push to payment for specific logic
+                // For MVP, we show a list or snackbar if no dedicated screen yet.
+                // Assuming we want to pay. Let's redirect to History or Documents where bills might be?
+                // Or "Quick Actions -> History"
+                context.push('/resident/history'); 
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red.shade600,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text('View Unpaid Bills'),
+            ),
+          )
+        ],
       ),
     );
   }

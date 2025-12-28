@@ -71,10 +71,7 @@ class OwnerDashboardScreen extends ConsumerWidget {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  SizedBox(
-                    height: 400, // Fixed height for list in scroll view
-                    child: const OwnerPropertiesList(), 
-                  ),
+                  const OwnerPropertiesList(),
                   const SizedBox(height: 30),
                   _buildSupportSection(context),
                   const SizedBox(height: 20),

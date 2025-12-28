@@ -173,19 +173,14 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
         _localPhotoUrl = url;
       }
       
-      await FirebaseFirestore.instance.collection('tenant_profiles').doc(uid).set(
-        {
-          if (docType == 'nid_front') 'nidFrontUrl': url else 'photoUrl': url,
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
-
-      // 3. Refresh Provider to update UI "Uploaded" status
-      ref.invalidate(residentDocumentsProvider(uid));
+      // Removed direct Firestore write here. 
+      // We only update local state. User MUST click "Save Documents" to persist.
+      
+      // We force a rebuild to show the "Uploaded" status based on local state variables
+      setState(() {}); 
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Upload Successful!')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Upload Successful! Don\'t forget to click Save.')));
       }
     } catch (e) {
       if (mounted) {

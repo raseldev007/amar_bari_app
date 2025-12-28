@@ -18,6 +18,7 @@ class ResidentDashboardData {
   final FlatModel? flat;
   final PropertyModel? property;
   final InvoiceModel? currentInvoice;
+  final double outstandingAmount;
 
   ResidentDashboardData({
     required this.state,
@@ -25,6 +26,7 @@ class ResidentDashboardData {
     this.flat,
     this.property,
     this.currentInvoice,
+    this.outstandingAmount = 0.0,
   });
 }
 
@@ -43,7 +45,6 @@ class FirestoreResidentRepository implements ResidentRepository {
       // 1. Load Current User (Resident)
       final userDoc = await _firestore.collection('users').doc(uid).get();
       if (!userDoc.exists) {
-        // Fallback if user doc missing (shouldn't happen if auth flow is correct)
         return ResidentDashboardData(state: ResidentHomeState.notAssigned);
       }
       final user = UserModel.fromJson(userDoc.data()!);
@@ -57,7 +58,7 @@ class FirestoreResidentRepository implements ResidentRepository {
       final flatDoc = user.assignedFlatId != null ? await _firestore.collection('flats').doc(user.assignedFlatId).get() : null;
       final flat = flatDoc != null && flatDoc.exists ? FlatModel.fromJson(flatDoc.data()!) : null;
 
-      // 3. Load Property (priority: flat's propertyId, then user's assignedPropertyId)
+      // 3. Load Property
       PropertyModel? property;
       String? propertyId = flat?.propertyId ?? user.assignedPropertyId;
       
@@ -68,35 +69,44 @@ class FirestoreResidentRepository implements ResidentRepository {
         }
       }
 
-      // 4. Load Current Month Invoice
-      // Month Key Format: "yyyy-MM" (e.g., "2025-12")
-      final currentMonthKey = DateFormat('yyyy-MM').format(DateTime.now());
-      
-      final invoiceQuery = await _firestore
+      // 4. Calculate Outstanding Dues (Fetch ALL invoices for this tenant)
+      // We fetch all because we need to sum up everything unpaid.
+      final allInvoicesQuery = await _firestore
           .collection('invoices')
           .where('tenantId', isEqualTo: uid)
-          .where('monthKey', isEqualTo: currentMonthKey)
-          .limit(1)
           .get();
+      
+      double totalOutstanding = 0.0;
+      InvoiceModel? currentMonthInvoice;
+      final currentMonthKey = DateFormat('yyyy-MM').format(DateTime.now());
 
-      if (invoiceQuery.docs.isNotEmpty) {
-         // STATE 3: Invoice Exists
-         final invoice = InvoiceModel.fromJson(invoiceQuery.docs.first.data());
-         return ResidentDashboardData(
-           state: ResidentHomeState.invoiceExists,
-           user: user,
-           flat: flat,
-           property: property,
-           currentInvoice: invoice,
-         );
+      for (var doc in allInvoicesQuery.docs) {
+        final inv = InvoiceModel.fromJson(doc.data());
+        
+        // Check for current month invoice
+        if (inv.monthKey == currentMonthKey) {
+          currentMonthInvoice = inv;
+        }
+
+        // Add to outstanding if not paid
+        if (inv.status != 'paid') {
+          totalOutstanding += inv.totalAmount;
+        }
       }
 
-      // STATE 2: Assigned but No Invoice
+      // Determine State
+      ResidentHomeState state = ResidentHomeState.assignedNoInvoice;
+      if (currentMonthInvoice != null) {
+        state = ResidentHomeState.invoiceExists;
+      }
+
       return ResidentDashboardData(
-        state: ResidentHomeState.assignedNoInvoice,
+        state: state,
         user: user,
         flat: flat,
         property: property,
+        currentInvoice: currentMonthInvoice,
+        outstandingAmount: totalOutstanding,
       );
 
     } catch (e) {

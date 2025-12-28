@@ -68,7 +68,10 @@ class DocumentRepository {
         .ref()
         .child('docs/$uid/$docType.jpg');
     
-    final metadata = SettableMetadata(contentType: 'image/jpeg');
+    final metadata = SettableMetadata(
+      contentType: file.mimeType ?? 'image/jpeg', 
+      customMetadata: {'uploadedBy': uid},
+    );
     
     UploadTask uploadTask;
     if (kIsWeb) {

@@ -19,11 +19,14 @@ class OwnerPropertiesList extends ConsumerWidget {
           );
         }
         return ListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          padding: EdgeInsets.zero,
           itemCount: properties.length,
           itemBuilder: (context, index) {
             final property = properties[index];
             return Card(
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              margin: const EdgeInsets.only(bottom: 12),
               child: ListTile(
                 title: Text(property.name, style: const TextStyle(fontWeight: FontWeight.bold)),
                 subtitle: Text('${property.address}, ${property.city}'),
