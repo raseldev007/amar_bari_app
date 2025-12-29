@@ -13,6 +13,7 @@ import '../../features/owner/flats/presentation/flat_details_screen.dart';
 import '../../features/owner/tenants/presentation/assign_tenant_screen.dart';
 import '../../features/owner/invoices/presentation/invoice_detail_screen.dart';
 import '../../features/owner/invoices/presentation/owner_invoice_list_screen.dart';
+import '../../features/owner/invoices/presentation/add_invoice_screen.dart';
 import '../../features/owner/overview/presentation/owner_overview_screen.dart';
 import '../../features/resident/payments/presentation/submit_payment_screen.dart';
 import 'package:amar_bari/features/owner/flats/data/flat_repository.dart';
@@ -163,6 +164,13 @@ final goRouterProvider = Provider<GoRouter>((ref) {
                          flat: flat,
                        );
                      },
+                   ),
+                   GoRoute(
+                     path: 'invoice/new',
+                     builder: (context, state) => AddInvoiceScreen(
+                       propertyId: state.pathParameters['propertyId']!,
+                       flatId: state.pathParameters['flatId']!,
+                     ),
                    ),
                    GoRoute(
                      path: 'invoice/:invoiceId',

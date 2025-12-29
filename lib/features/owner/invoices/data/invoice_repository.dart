@@ -12,6 +12,7 @@ abstract class InvoiceRepository {
   Stream<List<InvoiceModel>> getResidentInvoices(String residentId);
   Future<void> markAsPaid(String invoiceId, double amount);
   Future<void> sendReminder(String invoiceId, String tenantId, String monthKey);
+  Future<void> createInvoice(InvoiceModel invoice);
 }
 
 class FirestoreInvoiceRepository implements InvoiceRepository {
@@ -176,6 +177,18 @@ class FirestoreInvoiceRepository implements InvoiceRepository {
     });
 
     await batch.commit();
+  }
+
+  @override
+  Future<void> createInvoice(InvoiceModel invoice) async {
+    final docRef = _firestore.collection('invoices').doc(invoice.id);
+    final json = invoice.toJson();
+    // Ensure nesting is handled if manual JSON construction was needed, 
+    // but Freezed toJson should handle List<InvoiceItem> correctly if configured.
+    // However, in generateMonthlyInvoices we did manual mapping. Let's consistency.
+    json['items'] = invoice.items.map((e) => e.toJson()).toList();
+    
+    await docRef.set(json);
   }
 }
 

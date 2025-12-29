@@ -13,6 +13,7 @@ import '../../owner/invoices/data/invoice_repository.dart';
 import 'package:amar_bari/core/common_widgets/app_footer.dart';
 import 'package:amar_bari/models/request_model.dart';
 import 'package:amar_bari/models/flat_model.dart'; // Added missing import
+import 'package:uuid/uuid.dart';
 
 class ResidentHomeScreen extends ConsumerWidget {
   const ResidentHomeScreen({super.key});
@@ -619,18 +620,21 @@ class ResidentHomeScreen extends ConsumerWidget {
   void _handleInvoiceRequest(BuildContext context, WidgetRef ref, ResidentDashboardData data) {
     if (data.property == null || data.user == null) return;
     
-    // Create notification logic
-    final notificationData = {
-      'toUserId': data.property!.ownerId,
-      'fromUserId': data.user!.uid,
-      'type': 'invoice_request',
-      'title': 'Invoice Request',
-      'message': '${data.user!.name ?? "Resident"} requested invoice for ${DateFormat('MMMM').format(DateTime.now())}',
-      'flatId': data.flat?.id,
-      'month': DateFormat('yyyy-MM').format(DateTime.now()),
-    };
+    // Create RequestModel
+    final request = RequestModel(
+      id: const Uuid().v4(),
+      type: 'invoice_request',
+      tenantId: data.user!.uid,
+      flatId: data.flat?.id,
+      propertyId: data.property?.id,
+      ownerId: data.property?.ownerId,
+      title: 'Invoice Request',
+      message: '${data.user!.name ?? "Resident"} requested invoice for ${DateFormat('MMMM yyyy').format(DateTime.now())}',
+      status: 'open',
+      createdAt: DateTime.now(),
+    );
 
-    ref.read(requestRepositoryProvider).createNotification(notificationData);
+    ref.read(requestRepositoryProvider).createRequest(request);
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Invoice Request Sent!')));
   }
 
