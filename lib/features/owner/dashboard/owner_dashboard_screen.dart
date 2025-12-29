@@ -444,6 +444,26 @@ class RecentRequestsWidget extends ConsumerWidget {
                   
                   return flatAsync.when(
                     data: (flat) {
+                      // Special case for Invoice Requests
+                      if (request.type == 'invoice_request' && flat != null) {
+                        return ElevatedButton.icon(
+                          onPressed: () {
+                             // Navigate to Add Invoice with pre-filled details
+                             context.push('/owner/property/${flat.propertyId}/flat/${flat.id}/invoice/new');
+                             // Optionally mark as in progress automatically
+                             ref.read(requestRepositoryProvider).updateRequestStatus(request.id, 'in_progress');
+                          },
+                          icon: const Icon(Icons.receipt_long, size: 16),
+                          label: const Text('Create Invoice'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blue[700],
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                        );
+                      }
+
                       if (flat != null) {
                          // Already assigned
                          return Container(
