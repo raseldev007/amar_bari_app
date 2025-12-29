@@ -17,7 +17,7 @@ mixin _$RequestModel {
 
  String get id; String get type;// 'invoice_request' | 'support' | 'service'
  String get tenantId; String? get flatId; String? get propertyId; String? get ownerId; String get title; String get message; String get status;// 'open' | 'in_progress' | 'closed'
-@TimestampConverter() DateTime get createdAt; String? get response;@TimestampConverter() DateTime? get respondedAt;
+@TimestampConverter() DateTime get createdAt; String? get response;@TimestampConverter() DateTime? get respondedAt; String? get invoiceId;
 /// Create a copy of RequestModel
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -30,16 +30,16 @@ $RequestModelCopyWith<RequestModel> get copyWith => _$RequestModelCopyWithImpl<R
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is RequestModel&&(identical(other.id, id) || other.id == id)&&(identical(other.type, type) || other.type == type)&&(identical(other.tenantId, tenantId) || other.tenantId == tenantId)&&(identical(other.flatId, flatId) || other.flatId == flatId)&&(identical(other.propertyId, propertyId) || other.propertyId == propertyId)&&(identical(other.ownerId, ownerId) || other.ownerId == ownerId)&&(identical(other.title, title) || other.title == title)&&(identical(other.message, message) || other.message == message)&&(identical(other.status, status) || other.status == status)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.response, response) || other.response == response)&&(identical(other.respondedAt, respondedAt) || other.respondedAt == respondedAt));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is RequestModel&&(identical(other.id, id) || other.id == id)&&(identical(other.type, type) || other.type == type)&&(identical(other.tenantId, tenantId) || other.tenantId == tenantId)&&(identical(other.flatId, flatId) || other.flatId == flatId)&&(identical(other.propertyId, propertyId) || other.propertyId == propertyId)&&(identical(other.ownerId, ownerId) || other.ownerId == ownerId)&&(identical(other.title, title) || other.title == title)&&(identical(other.message, message) || other.message == message)&&(identical(other.status, status) || other.status == status)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.response, response) || other.response == response)&&(identical(other.respondedAt, respondedAt) || other.respondedAt == respondedAt)&&(identical(other.invoiceId, invoiceId) || other.invoiceId == invoiceId));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,type,tenantId,flatId,propertyId,ownerId,title,message,status,createdAt,response,respondedAt);
+int get hashCode => Object.hash(runtimeType,id,type,tenantId,flatId,propertyId,ownerId,title,message,status,createdAt,response,respondedAt,invoiceId);
 
 @override
 String toString() {
-  return 'RequestModel(id: $id, type: $type, tenantId: $tenantId, flatId: $flatId, propertyId: $propertyId, ownerId: $ownerId, title: $title, message: $message, status: $status, createdAt: $createdAt, response: $response, respondedAt: $respondedAt)';
+  return 'RequestModel(id: $id, type: $type, tenantId: $tenantId, flatId: $flatId, propertyId: $propertyId, ownerId: $ownerId, title: $title, message: $message, status: $status, createdAt: $createdAt, response: $response, respondedAt: $respondedAt, invoiceId: $invoiceId)';
 }
 
 
@@ -50,7 +50,7 @@ abstract mixin class $RequestModelCopyWith<$Res>  {
   factory $RequestModelCopyWith(RequestModel value, $Res Function(RequestModel) _then) = _$RequestModelCopyWithImpl;
 @useResult
 $Res call({
- String id, String type, String tenantId, String? flatId, String? propertyId, String? ownerId, String title, String message, String status,@TimestampConverter() DateTime createdAt, String? response,@TimestampConverter() DateTime? respondedAt
+ String id, String type, String tenantId, String? flatId, String? propertyId, String? ownerId, String title, String message, String status,@TimestampConverter() DateTime createdAt, String? response,@TimestampConverter() DateTime? respondedAt, String? invoiceId
 });
 
 
@@ -67,7 +67,7 @@ class _$RequestModelCopyWithImpl<$Res>
 
 /// Create a copy of RequestModel
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? type = null,Object? tenantId = null,Object? flatId = freezed,Object? propertyId = freezed,Object? ownerId = freezed,Object? title = null,Object? message = null,Object? status = null,Object? createdAt = null,Object? response = freezed,Object? respondedAt = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? type = null,Object? tenantId = null,Object? flatId = freezed,Object? propertyId = freezed,Object? ownerId = freezed,Object? title = null,Object? message = null,Object? status = null,Object? createdAt = null,Object? response = freezed,Object? respondedAt = freezed,Object? invoiceId = freezed,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,type: null == type ? _self.type : type // ignore: cast_nullable_to_non_nullable
@@ -81,7 +81,8 @@ as String,status: null == status ? _self.status : status // ignore: cast_nullabl
 as String,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
 as DateTime,response: freezed == response ? _self.response : response // ignore: cast_nullable_to_non_nullable
 as String?,respondedAt: freezed == respondedAt ? _self.respondedAt : respondedAt // ignore: cast_nullable_to_non_nullable
-as DateTime?,
+as DateTime?,invoiceId: freezed == invoiceId ? _self.invoiceId : invoiceId // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 
@@ -163,10 +164,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String type,  String tenantId,  String? flatId,  String? propertyId,  String? ownerId,  String title,  String message,  String status, @TimestampConverter()  DateTime createdAt,  String? response, @TimestampConverter()  DateTime? respondedAt)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String type,  String tenantId,  String? flatId,  String? propertyId,  String? ownerId,  String title,  String message,  String status, @TimestampConverter()  DateTime createdAt,  String? response, @TimestampConverter()  DateTime? respondedAt,  String? invoiceId)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _RequestModel() when $default != null:
-return $default(_that.id,_that.type,_that.tenantId,_that.flatId,_that.propertyId,_that.ownerId,_that.title,_that.message,_that.status,_that.createdAt,_that.response,_that.respondedAt);case _:
+return $default(_that.id,_that.type,_that.tenantId,_that.flatId,_that.propertyId,_that.ownerId,_that.title,_that.message,_that.status,_that.createdAt,_that.response,_that.respondedAt,_that.invoiceId);case _:
   return orElse();
 
 }
@@ -184,10 +185,10 @@ return $default(_that.id,_that.type,_that.tenantId,_that.flatId,_that.propertyId
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String type,  String tenantId,  String? flatId,  String? propertyId,  String? ownerId,  String title,  String message,  String status, @TimestampConverter()  DateTime createdAt,  String? response, @TimestampConverter()  DateTime? respondedAt)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String type,  String tenantId,  String? flatId,  String? propertyId,  String? ownerId,  String title,  String message,  String status, @TimestampConverter()  DateTime createdAt,  String? response, @TimestampConverter()  DateTime? respondedAt,  String? invoiceId)  $default,) {final _that = this;
 switch (_that) {
 case _RequestModel():
-return $default(_that.id,_that.type,_that.tenantId,_that.flatId,_that.propertyId,_that.ownerId,_that.title,_that.message,_that.status,_that.createdAt,_that.response,_that.respondedAt);}
+return $default(_that.id,_that.type,_that.tenantId,_that.flatId,_that.propertyId,_that.ownerId,_that.title,_that.message,_that.status,_that.createdAt,_that.response,_that.respondedAt,_that.invoiceId);}
 }
 /// A variant of `when` that fallback to returning `null`
 ///
@@ -201,10 +202,10 @@ return $default(_that.id,_that.type,_that.tenantId,_that.flatId,_that.propertyId
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String type,  String tenantId,  String? flatId,  String? propertyId,  String? ownerId,  String title,  String message,  String status, @TimestampConverter()  DateTime createdAt,  String? response, @TimestampConverter()  DateTime? respondedAt)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String type,  String tenantId,  String? flatId,  String? propertyId,  String? ownerId,  String title,  String message,  String status, @TimestampConverter()  DateTime createdAt,  String? response, @TimestampConverter()  DateTime? respondedAt,  String? invoiceId)?  $default,) {final _that = this;
 switch (_that) {
 case _RequestModel() when $default != null:
-return $default(_that.id,_that.type,_that.tenantId,_that.flatId,_that.propertyId,_that.ownerId,_that.title,_that.message,_that.status,_that.createdAt,_that.response,_that.respondedAt);case _:
+return $default(_that.id,_that.type,_that.tenantId,_that.flatId,_that.propertyId,_that.ownerId,_that.title,_that.message,_that.status,_that.createdAt,_that.response,_that.respondedAt,_that.invoiceId);case _:
   return null;
 
 }
@@ -216,7 +217,7 @@ return $default(_that.id,_that.type,_that.tenantId,_that.flatId,_that.propertyId
 @JsonSerializable()
 
 class _RequestModel implements RequestModel {
-  const _RequestModel({required this.id, required this.type, required this.tenantId, this.flatId, this.propertyId, this.ownerId, required this.title, required this.message, this.status = 'open', @TimestampConverter() required this.createdAt, this.response, @TimestampConverter() this.respondedAt});
+  const _RequestModel({required this.id, required this.type, required this.tenantId, this.flatId, this.propertyId, this.ownerId, required this.title, required this.message, this.status = 'open', @TimestampConverter() required this.createdAt, this.response, @TimestampConverter() this.respondedAt, this.invoiceId});
   factory _RequestModel.fromJson(Map<String, dynamic> json) => _$RequestModelFromJson(json);
 
 @override final  String id;
@@ -233,6 +234,7 @@ class _RequestModel implements RequestModel {
 @override@TimestampConverter() final  DateTime createdAt;
 @override final  String? response;
 @override@TimestampConverter() final  DateTime? respondedAt;
+@override final  String? invoiceId;
 
 /// Create a copy of RequestModel
 /// with the given fields replaced by the non-null parameter values.
@@ -247,16 +249,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _RequestModel&&(identical(other.id, id) || other.id == id)&&(identical(other.type, type) || other.type == type)&&(identical(other.tenantId, tenantId) || other.tenantId == tenantId)&&(identical(other.flatId, flatId) || other.flatId == flatId)&&(identical(other.propertyId, propertyId) || other.propertyId == propertyId)&&(identical(other.ownerId, ownerId) || other.ownerId == ownerId)&&(identical(other.title, title) || other.title == title)&&(identical(other.message, message) || other.message == message)&&(identical(other.status, status) || other.status == status)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.response, response) || other.response == response)&&(identical(other.respondedAt, respondedAt) || other.respondedAt == respondedAt));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _RequestModel&&(identical(other.id, id) || other.id == id)&&(identical(other.type, type) || other.type == type)&&(identical(other.tenantId, tenantId) || other.tenantId == tenantId)&&(identical(other.flatId, flatId) || other.flatId == flatId)&&(identical(other.propertyId, propertyId) || other.propertyId == propertyId)&&(identical(other.ownerId, ownerId) || other.ownerId == ownerId)&&(identical(other.title, title) || other.title == title)&&(identical(other.message, message) || other.message == message)&&(identical(other.status, status) || other.status == status)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.response, response) || other.response == response)&&(identical(other.respondedAt, respondedAt) || other.respondedAt == respondedAt)&&(identical(other.invoiceId, invoiceId) || other.invoiceId == invoiceId));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,type,tenantId,flatId,propertyId,ownerId,title,message,status,createdAt,response,respondedAt);
+int get hashCode => Object.hash(runtimeType,id,type,tenantId,flatId,propertyId,ownerId,title,message,status,createdAt,response,respondedAt,invoiceId);
 
 @override
 String toString() {
-  return 'RequestModel(id: $id, type: $type, tenantId: $tenantId, flatId: $flatId, propertyId: $propertyId, ownerId: $ownerId, title: $title, message: $message, status: $status, createdAt: $createdAt, response: $response, respondedAt: $respondedAt)';
+  return 'RequestModel(id: $id, type: $type, tenantId: $tenantId, flatId: $flatId, propertyId: $propertyId, ownerId: $ownerId, title: $title, message: $message, status: $status, createdAt: $createdAt, response: $response, respondedAt: $respondedAt, invoiceId: $invoiceId)';
 }
 
 
@@ -267,7 +269,7 @@ abstract mixin class _$RequestModelCopyWith<$Res> implements $RequestModelCopyWi
   factory _$RequestModelCopyWith(_RequestModel value, $Res Function(_RequestModel) _then) = __$RequestModelCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String type, String tenantId, String? flatId, String? propertyId, String? ownerId, String title, String message, String status,@TimestampConverter() DateTime createdAt, String? response,@TimestampConverter() DateTime? respondedAt
+ String id, String type, String tenantId, String? flatId, String? propertyId, String? ownerId, String title, String message, String status,@TimestampConverter() DateTime createdAt, String? response,@TimestampConverter() DateTime? respondedAt, String? invoiceId
 });
 
 
@@ -284,7 +286,7 @@ class __$RequestModelCopyWithImpl<$Res>
 
 /// Create a copy of RequestModel
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? type = null,Object? tenantId = null,Object? flatId = freezed,Object? propertyId = freezed,Object? ownerId = freezed,Object? title = null,Object? message = null,Object? status = null,Object? createdAt = null,Object? response = freezed,Object? respondedAt = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? type = null,Object? tenantId = null,Object? flatId = freezed,Object? propertyId = freezed,Object? ownerId = freezed,Object? title = null,Object? message = null,Object? status = null,Object? createdAt = null,Object? response = freezed,Object? respondedAt = freezed,Object? invoiceId = freezed,}) {
   return _then(_RequestModel(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,type: null == type ? _self.type : type // ignore: cast_nullable_to_non_nullable
@@ -298,7 +300,8 @@ as String,status: null == status ? _self.status : status // ignore: cast_nullabl
 as String,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
 as DateTime,response: freezed == response ? _self.response : response // ignore: cast_nullable_to_non_nullable
 as String?,respondedAt: freezed == respondedAt ? _self.respondedAt : respondedAt // ignore: cast_nullable_to_non_nullable
-as DateTime?,
+as DateTime?,invoiceId: freezed == invoiceId ? _self.invoiceId : invoiceId // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 

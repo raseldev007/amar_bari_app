@@ -25,6 +25,7 @@ _RequestModel _$RequestModelFromJson(Map<String, dynamic> json) =>
         json['respondedAt'],
         const TimestampConverter().fromJson,
       ),
+      invoiceId: json['invoiceId'] as String?,
     );
 
 Map<String, dynamic> _$RequestModelToJson(_RequestModel instance) =>
@@ -44,6 +45,7 @@ Map<String, dynamic> _$RequestModelToJson(_RequestModel instance) =>
         instance.respondedAt,
         const TimestampConverter().toJson,
       ),
+      'invoiceId': instance.invoiceId,
     };
 
 Value? _$JsonConverterFromJson<Json, Value>(

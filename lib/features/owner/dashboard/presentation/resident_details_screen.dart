@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import '../data/owner_dashboard_providers.dart';
 import '../../../../models/flat_model.dart';
 import '../../../../core/common_widgets/app_footer.dart';
+import 'package:amar_bari/l10n/app_localizations.dart';
 
 class ResidentDetailsScreen extends ConsumerWidget {
   final String residentId;
@@ -28,7 +29,7 @@ class ResidentDetailsScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
-        title: Text('Resident Details', style: GoogleFonts.poppins(color: Colors.black87, fontWeight: FontWeight.w600)),
+        title: Text(AppLocalizations.of(context)!.residentDetails, style: GoogleFonts.poppins(color: Colors.black87, fontWeight: FontWeight.w600)),
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
@@ -43,9 +44,9 @@ class ResidentDetailsScreen extends ConsumerWidget {
           children: [
              // 1. Profile Section
              residentAsync.when(
-               data: (user) => _buildProfileHeader(user?.name, user?.photoUrl, user?.phoneNumber, user?.email),
+                data: (user) => _buildProfileHeader(context, user?.name, user?.photoUrl, user?.phoneNumber, user?.email),
                loading: () => const CircularProgressIndicator(),
-               error: (e,_) => Text('Error loading profile: $e'),
+                error: (e,_) => Text('${AppLocalizations.of(context)!.error}: $e'),
              ),
              const SizedBox(height: 24),
 
@@ -56,12 +57,12 @@ class ResidentDetailsScreen extends ConsumerWidget {
                    builder: (context, ref, child) {
                       final flat = flatAsync.value!;
                       final propertyAsync = ref.watch(propertyByIdProvider(flat.propertyId));
-                      final propertyName = propertyAsync.value?.name ?? 'Loading Property...';
+                      final propertyName = propertyAsync.value?.name ?? AppLocalizations.of(context)!.loading;
                       final date = flat.updatedAt ?? flat.createdAt;
                       final formattedDate = DateFormat('MMM d, yyyy').format(date);
 
                       return _buildSectionCard(
-                        title: 'Assigned Flat',
+                        title: AppLocalizations.of(context)!.statusActive,
                         icon: Icons.home,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -94,7 +95,7 @@ class ResidentDetailsScreen extends ConsumerWidget {
                                  const SizedBox(width: 12),
                                  Icon(Icons.calendar_today, size: 14, color: Colors.grey[600]),
                                  const SizedBox(width: 4),
-                                 Text('Joined: $formattedDate', style: GoogleFonts.inter(fontSize: 12, color: Colors.grey[600])),
+                                  Text('${AppLocalizations.of(context)!.joined}: $formattedDate', style: GoogleFonts.inter(fontSize: 12, color: Colors.grey[600])),
                                ],
                              )
                           ],
@@ -108,7 +109,7 @@ class ResidentDetailsScreen extends ConsumerWidget {
              // 3. Actions
              // 3. Actions
              residentAsync.when(
-               data: (user) => user != null ? _buildActionButtons(context, user.phoneNumber) : const SizedBox(),
+               data: (user) => user != null ? _buildActionButtons(context, user.phoneNumber, user.name) : const SizedBox(),
                loading: () => const SizedBox(),
                error: (_, __) => const SizedBox(),
              ),
@@ -130,7 +131,7 @@ class ResidentDetailsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildProfileHeader(String? name, String? photoUrl, String? phone, String? email) {
+  Widget _buildProfileHeader(BuildContext context, String? name, String? photoUrl, String? phone, String? email) {
     return Column(
       children: [
         CircleAvatar(
@@ -143,7 +144,7 @@ class ResidentDetailsScreen extends ConsumerWidget {
         ),
         const SizedBox(height: 16),
         Text(
-          name ?? 'Unknown Name',
+          name ?? AppLocalizations.of(context)!.residentUnknown,
           style: GoogleFonts.poppins(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black87),
         ),
         if (phone != null) ...[
@@ -158,7 +159,8 @@ class ResidentDetailsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildActionButtons(BuildContext context, String? phone) {
+  Widget _buildActionButtons(BuildContext context, String? phone, String? name) {
+    final residentName = name ?? 'Resident';
     return Row(
       children: [
         if (phone != null) ...[
@@ -166,7 +168,7 @@ class ResidentDetailsScreen extends ConsumerWidget {
             child: ElevatedButton.icon(
               onPressed: () => launchUrl(Uri.parse('tel:$phone')),
               icon: const Icon(Icons.call, size: 18),
-              label: const Text('Call'),
+              label: Text(AppLocalizations.of(context)!.call),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.green,
                 foregroundColor: Colors.white,
@@ -179,13 +181,13 @@ class ResidentDetailsScreen extends ConsumerWidget {
         Expanded(
           child: ElevatedButton.icon(
             onPressed: () {
-               // Navigate to payments/invoices filtered by resident
-               // Assuming invoice list can filter? Or just View Payment History generically
-               // For MVP, maybe show snackbar if not implemented, or navigate to full list
-               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Payment history filter coming soon')));
+               context.push(
+                 '/owner/residents/$residentId/history', 
+                 extra: {'name': residentName},
+               );
             },
             icon: const Icon(Icons.history, size: 18),
-            label: const Text('History'),
+            label: Text(AppLocalizations.of(context)!.history),
              style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.blue[800],
                 foregroundColor: Colors.white,
@@ -226,9 +228,9 @@ class ResidentDetailsScreen extends ConsumerWidget {
     // tenant is TenantProfileModel?
     if (tenant == null) {
       return _buildSectionCard(
-        title: 'Documents', 
+        title: AppLocalizations.of(context)!.documents, 
         icon: Icons.folder_shared, 
-        child: const Text('No verification documents uploaded.'),
+        child: Text(AppLocalizations.of(context)!.noDocsUploaded),
       );
     }
     
@@ -240,7 +242,7 @@ class ResidentDetailsScreen extends ConsumerWidget {
 
   Widget _buildDocumentsContent(BuildContext context, dynamic tenant) {
      return _buildSectionCard(
-       title: 'Documents & Verification',
+       title: AppLocalizations.of(context)!.docsVerification,
        icon: Icons.verified_user,
        child: Column(
          crossAxisAlignment: CrossAxisAlignment.start,
@@ -260,14 +262,14 @@ class ResidentDetailsScreen extends ConsumerWidget {
            ),
            const SizedBox(height: 16),
            if (tenant.nidFrontUrl != null) 
-             _buildDocPreview(context, 'NID Front', tenant.nidFrontUrl!),
+             _buildDocPreview(context, AppLocalizations.of(context)!.nidFront, tenant.nidFrontUrl!),
            if (tenant.birthCertUrl != null)
-             _buildDocPreview(context, 'Birth Certificate', tenant.birthCertUrl!),
+             _buildDocPreview(context, AppLocalizations.of(context)!.birthCertificate, tenant.birthCertUrl!),
            if (tenant.photoUrl != null)
-              _buildDocPreview(context, 'Passport Photo', tenant.photoUrl!),
+              _buildDocPreview(context, AppLocalizations.of(context)!.passportPhoto, tenant.photoUrl!),
               
            if (tenant.nidFrontUrl == null && tenant.birthCertUrl == null)
-              const Text('No document images available.', style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey)),
+              Text(AppLocalizations.of(context)!.noDocsAvailable, style: const TextStyle(fontStyle: FontStyle.italic, color: Colors.grey)),
          ],
        ),
      );
@@ -298,7 +300,7 @@ class ResidentDetailsScreen extends ConsumerWidget {
                  )
                );
              },
-             child: const Text('View'),
+             child: Text(AppLocalizations.of(context)!.view),
            ),
         ],
       ),

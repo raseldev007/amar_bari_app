@@ -2,6 +2,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:amar_bari/core/services/notification_service.dart';
+import 'package:amar_bari/features/settings/data/settings_provider.dart';
+import 'package:amar_bari/l10n/app_localizations.dart';
 import 'core/routing/app_router.dart';
 import 'firebase_options.dart';
 
@@ -29,6 +31,7 @@ class AmarBariApp extends ConsumerWidget { // Renamed MyApp to AmarBariApp
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(goRouterProvider);
+    final settings = ref.watch(settingsProvider);
 
     return MaterialApp.router(
       debugShowCheckedModeBanner: false,
@@ -37,6 +40,9 @@ class AmarBariApp extends ConsumerWidget { // Renamed MyApp to AmarBariApp
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
+      locale: settings.locale,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       routerConfig: router,
     );
   }

@@ -20,6 +20,7 @@ sealed class RequestModel with _$RequestModel {
     @TimestampConverter() required DateTime createdAt,
     String? response,
     @TimestampConverter() DateTime? respondedAt,
+    String? invoiceId,
   }) = _RequestModel;
 
   factory RequestModel.fromJson(Map<String, dynamic> json) => _$RequestModelFromJson(json);

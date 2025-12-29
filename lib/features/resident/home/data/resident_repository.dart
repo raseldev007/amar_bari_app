@@ -32,12 +32,23 @@ class ResidentDashboardData {
 
 abstract class ResidentRepository {
   Future<ResidentDashboardData> getDashboardData(String uid);
+  Stream<List<InvoiceModel>> getInvoicesStream(String uid);
+  Future<InvoiceModel?> getInvoice(String invoiceId);
 }
 
 class FirestoreResidentRepository implements ResidentRepository {
   final FirebaseFirestore _firestore;
 
   FirestoreResidentRepository(this._firestore);
+  
+  @override
+  Future<InvoiceModel?> getInvoice(String invoiceId) async {
+    final doc = await _firestore.collection('invoices').doc(invoiceId).get();
+    if (doc.exists) {
+      return InvoiceModel.fromJson(doc.data()!);
+    }
+    return null;
+  }
 
   @override
   Future<ResidentDashboardData> getDashboardData(String uid) async {
@@ -80,11 +91,14 @@ class FirestoreResidentRepository implements ResidentRepository {
       InvoiceModel? currentMonthInvoice;
       final currentMonthKey = DateFormat('yyyy-MM').format(DateTime.now());
 
-      for (var doc in allInvoicesQuery.docs) {
-        final inv = InvoiceModel.fromJson(doc.data());
+      final invoices = allInvoicesQuery.docs.map((doc) => InvoiceModel.fromJson(doc.data())).toList();
+      // Sort by createdAt descending
+      invoices.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+      for (var inv in invoices) {
         
-        // Check for current month invoice
-        if (inv.monthKey == currentMonthKey) {
+        // Check for current month invoice (Pick latest)
+        if (inv.monthKey == currentMonthKey && currentMonthInvoice == null) {
           currentMonthInvoice = inv;
         }
 
@@ -115,6 +129,17 @@ class FirestoreResidentRepository implements ResidentRepository {
       return ResidentDashboardData(state: ResidentHomeState.notAssigned); 
     }
   }
+
+  @override
+  Stream<List<InvoiceModel>> getInvoicesStream(String uid) {
+    return _firestore
+        .collection('invoices')
+        .where('tenantId', isEqualTo: uid)
+        .snapshots() // This makes it real-time
+        .map((snapshot) {
+      return snapshot.docs.map((doc) => InvoiceModel.fromJson(doc.data())).toList();
+    });
+  }
 }
 
 final residentRepositoryProvider = Provider<ResidentRepository>((ref) {
@@ -123,5 +148,9 @@ final residentRepositoryProvider = Provider<ResidentRepository>((ref) {
 
 final residentDashboardDataProvider = FutureProvider.family<ResidentDashboardData, String>((ref, uid) {
   return ref.watch(residentRepositoryProvider).getDashboardData(uid);
+});
+
+final residentInvoicesStreamProvider = StreamProvider.family<List<InvoiceModel>, String>((ref, uid) {
+  return ref.watch(residentRepositoryProvider).getInvoicesStream(uid);
 });
 

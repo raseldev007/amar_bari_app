@@ -1,28 +1,42 @@
-import 'package:amar_bari/features/resident/payments/data/payment_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:amar_bari/features/auth/data/auth_repository.dart';
 import 'package:intl/intl.dart';
+import '../../../../features/resident/payments/data/payment_repository.dart';
 
-class PaymentHistoryScreen extends ConsumerWidget {
-  const PaymentHistoryScreen({super.key});
+class OwnerPaymentHistoryScreen extends ConsumerWidget {
+  final String residentId;
+  final String residentName;
+
+  const OwnerPaymentHistoryScreen({
+    super.key, 
+    required this.residentId,
+    required this.residentName,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final user = ref.watch(authRepositoryProvider).currentUser;
-    final paymentsAsync = ref.watch(userPaymentsProvider(user?.uid ?? ''));
+    final paymentsAsync = ref.watch(userPaymentsProvider(residentId));
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Payment History")),
+      appBar: AppBar(
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text("Payment History", style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 18)),
+            Text(residentName, style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.normal)),
+          ],
+        ),
+      ),
       body: paymentsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, s) => Center(child: Text('Error: $e')),
         data: (payments) {
           if (payments.isEmpty) {
-            return const Center(child: Text("No payments submitted yet."));
+            return const Center(child: Text("No payments found for this resident."));
           }
 
+          // List is already sorted by repository
           return ListView.separated(
             padding: const EdgeInsets.all(16),
             itemCount: payments.length,

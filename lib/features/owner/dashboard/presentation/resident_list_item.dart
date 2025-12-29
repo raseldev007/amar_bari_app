@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../models/flat_model.dart';
 import '../data/owner_dashboard_providers.dart';
+import 'package:amar_bari/l10n/app_localizations.dart';
 
 class ResidentListItem extends ConsumerWidget {
   final FlatModel flat;
@@ -55,7 +56,7 @@ class ResidentListItem extends ConsumerWidget {
                         children: [
                           Flexible(
                             child: Text(
-                              user?.name ?? 'Unknown',
+                              user?.name ?? AppLocalizations.of(context)!.statusNotAssigned,
                               style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 14),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -72,7 +73,7 @@ class ResidentListItem extends ConsumerWidget {
                         ],
                       ),
                       loading: () => Container(width: 100, height: 14, color: Colors.grey[300]),
-                      error: (_,__) => const Text('Error'),
+                      error: (_,__) => Text(AppLocalizations.of(context)!.error),
                     ),
                     const SizedBox(height: 2),
                     Row(

@@ -7,6 +7,7 @@ abstract class PaymentRepository {
   Future<void> submitPayment(PaymentModel payment);
   Future<void> confirmPayment(String paymentId, String invoiceId);
   Stream<List<PaymentModel>> getInvoicePayments(String invoiceId);
+  Stream<List<PaymentModel>> getUserPayments(String residentId);
 }
 
 class FirestorePaymentRepository implements PaymentRepository {
@@ -48,6 +49,19 @@ class FirestorePaymentRepository implements PaymentRepository {
         .snapshots()
         .map((s) => s.docs.map((d) => PaymentModel.fromJson(d.data())).toList());
   }
+
+  @override
+  Stream<List<PaymentModel>> getUserPayments(String residentId) {
+    return _firestore
+        .collection('payments')
+        .where('residentId', isEqualTo: residentId)
+        .snapshots()
+        .map((s) {
+          final list = s.docs.map((d) => PaymentModel.fromJson(d.data())).toList();
+          list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          return list;
+        });
+  }
 }
 
 final paymentRepositoryProvider = Provider<PaymentRepository>((ref) {
@@ -56,4 +70,8 @@ final paymentRepositoryProvider = Provider<PaymentRepository>((ref) {
 
 final invoicePaymentsProvider = StreamProvider.family<List<PaymentModel>, String>((ref, invoiceId) {
   return ref.watch(paymentRepositoryProvider).getInvoicePayments(invoiceId);
+});
+
+final userPaymentsProvider = StreamProvider.family<List<PaymentModel>, String>((ref, residentId) {
+  return ref.watch(paymentRepositoryProvider).getUserPayments(residentId);
 });

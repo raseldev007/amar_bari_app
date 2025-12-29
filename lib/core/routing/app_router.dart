@@ -29,6 +29,8 @@ import '../../features/resident/support/presentation/support_screen.dart';
 import '../../features/resident/profile/presentation/resident_profile_screen.dart';
 import '../../features/support/presentation/contact_developer_screen.dart';
 import '../../features/owner/dashboard/presentation/resident_details_screen.dart';
+import '../../features/owner/dashboard/presentation/owner_payment_history_screen.dart';
+import '../../features/settings/presentation/settings_screen.dart';
 
 // Keys for navigation
 final rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -167,10 +169,14 @@ final goRouterProvider = Provider<GoRouter>((ref) {
                    ),
                    GoRoute(
                      path: 'invoice/new',
-                     builder: (context, state) => AddInvoiceScreen(
-                       propertyId: state.pathParameters['propertyId']!,
-                       flatId: state.pathParameters['flatId']!,
-                     ),
+                     builder: (context, state) {
+                       final extra = state.extra as Map<String, dynamic>?;
+                       return AddInvoiceScreen(
+                         propertyId: state.pathParameters['propertyId']!,
+                         flatId: state.pathParameters['flatId']!,
+                         requestId: extra?['requestId'] as String?,
+                       );
+                     },
                    ),
                    GoRoute(
                      path: 'invoice/:invoiceId',
@@ -192,6 +198,18 @@ final goRouterProvider = Provider<GoRouter>((ref) {
                  flatExtra: flat,
                );
              },
+             routes: [
+               GoRoute(
+                 path: 'history',
+                 builder: (context, state) {
+                   final extras = state.extra as Map<String, dynamic>;
+                   return OwnerPaymentHistoryScreen(
+                     residentId: state.pathParameters['residentId']!,
+                     residentName: extras['name'] as String,
+                   );
+                 },
+               ),
+             ],
            ),
         ],
       ),
@@ -202,8 +220,18 @@ final goRouterProvider = Provider<GoRouter>((ref) {
            GoRoute(
              path: 'payment',
              builder: (context, state) {
-               final invoice = state.extra as InvoiceModel;
-               return SubmitPaymentScreen(invoice: invoice);
+               InvoiceModel? invoice;
+               String? ownerId;
+               
+               if (state.extra is InvoiceModel) {
+                 invoice = state.extra as InvoiceModel;
+               } else if (state.extra is Map<String, dynamic>) {
+                 final extra = state.extra as Map<String, dynamic>;
+                 invoice = extra['invoice'] as InvoiceModel?;
+                 ownerId = extra['ownerId'] as String?;
+               }
+               
+               return SubmitPaymentScreen(invoice: invoice, ownerId: ownerId);
              }
            ),
            GoRoute(
@@ -225,8 +253,12 @@ final goRouterProvider = Provider<GoRouter>((ref) {
            GoRoute(
              path: 'profile',
              builder: (context, state) => const ResidentProfileScreen(),
-           ),
+            ),
         ],
+      ),
+      GoRoute(
+        path: '/settings',
+        builder: (context, state) => const SettingsScreen(),
       ),
     ],
   );

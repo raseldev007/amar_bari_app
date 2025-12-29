@@ -7,13 +7,15 @@ import '../../../../models/invoice_model.dart';
 import '../../flats/data/flat_repository.dart';
 import '../../tenants/data/lease_repository.dart';
 import '../data/invoice_repository.dart';
+import 'package:amar_bari/features/resident/requests/data/request_repository.dart';
 import '../../../../core/theme/app_gradients.dart';
 
 class AddInvoiceScreen extends ConsumerStatefulWidget {
   final String propertyId;
   final String flatId;
+  final String? requestId;
 
-  const AddInvoiceScreen({super.key, required this.propertyId, required this.flatId});
+  const AddInvoiceScreen({super.key, required this.propertyId, required this.flatId, this.requestId});
 
   @override
   ConsumerState<AddInvoiceScreen> createState() => _AddInvoiceScreenState();
@@ -269,6 +271,11 @@ class _AddInvoiceScreenState extends ConsumerState<AddInvoiceScreen> {
       final finalInvoice = invoice.copyWith(ownerId: ownerId);
 
       await ref.read(invoiceRepositoryProvider).createInvoice(finalInvoice);
+
+      // Resolve Request if linked
+      if (widget.requestId != null) {
+        await ref.read(requestRepositoryProvider).resolveRequestWithInvoice(widget.requestId!, finalInvoice.id);
+      }
 
       if (mounted) {
         Navigator.pop(context);

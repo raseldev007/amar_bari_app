@@ -7,6 +7,7 @@ import '../../../../core/theme/app_gradients.dart';
 import '../../auth/data/auth_repository.dart';
 import 'data/resident_repository.dart';
 import '../../../../models/invoice_model.dart';
+import 'package:amar_bari/l10n/app_localizations.dart';
 import 'package:amar_bari/features/resident/requests/data/request_repository.dart';
 import '../../owner/invoices/data/invoice_repository.dart';
 
@@ -22,70 +23,168 @@ class ResidentHomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authRepositoryProvider).currentUser;
     final dashboardDataAsync = ref.watch(residentDashboardDataProvider(user?.uid ?? ''));
+    final realTimeInvoicesAsync = ref.watch(residentInvoicesStreamProvider(user?.uid ?? '')); // Watch Real-time data
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA), // Soft grey background
-      body: dashboardDataAsync.when(
-        data: (data) {
-          return RefreshIndicator(
-            onRefresh: () async {
-              ref.invalidate(residentDashboardDataProvider(user?.uid ?? ''));
-              ref.invalidate(residentRequestsProvider(user?.uid ?? ''));
-              await Future.delayed(const Duration(milliseconds: 500));
+      appBar: AppBar(
+        title: Text(AppLocalizations.of(context)!.myHome, style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () => context.push('/settings'),
+          ),
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () {
+              final user = ref.read(authRepositoryProvider).currentUser;
+              if (user != null) {
+                 ref.refresh(residentInvoicesStreamProvider(user.uid));
+              }
             },
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              child: Column(
-                children: [
-                  _buildHeader(context, ref, data), // Pass ref
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                    child: Column(
-                      children: [
-                        const SizedBox(height: 20),
-                        
-                        // Detailed Flat Info Card
-                        if (data.flat != null) 
-                          _buildFlatDetailsCard(context, data.flat!),
+          ),
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: () => ref.read(authRepositoryProvider).signOut(),
+          ),
+        ],
+      ),
+      body: dashboardDataAsync.when(
+        data: (staticData) {
+          // Merge Real-time data locally
+          return realTimeInvoicesAsync.when(
+            data: (invoices) {
+              // Recalculate based on real-time stream
+              double outstandingAmount = 0.0;
+              InvoiceModel? currentInvoice;
+              final currentMonthKey = DateFormat('yyyy-MM').format(DateTime.now());
 
-                        const SizedBox(height: 10),
-                        
-                        // State-based Content
-                        _buildOutstandingDuesCard(context, data.outstandingAmount),
-                        const SizedBox(height: 15),
+              // Strategy: 
+              // 1. Find the LATEST invoice that is NOT PAID (Due/Overdue).
+              // 2. If all are paid, show the LATEST paid invoice.
+              
+              InvoiceModel? firstDue;
+              
+              for (var inv in invoices) {
+                if (inv.status != 'paid') {
+                   // Keep track of total outstanding
+                   outstandingAmount += inv.totalAmount;
+                   
+                   // Found a due invoice? If it's the first one we see (since list is sorted by latest), keep it.
+                   firstDue ??= inv;
+                }
+              }
 
-                        if (data.state == ResidentHomeState.invoiceExists)
-                          _buildBillCard(context, data.currentInvoice)
-                        else if (data.state == ResidentHomeState.assignedNoInvoice)
-                          _buildNoInvoiceCard(context, ref, data)
-                        else
-                          _buildNotAssignedCard(context),
+              // Decision logic:
+              // If we found a DUE invoice, show it (prioritize latest due).
+              // Else, show the absolute latest invoice (which must be paid).
+              if (firstDue != null) {
+                currentInvoice = firstDue;
+              } else if (invoices.isNotEmpty) {
+                currentInvoice = invoices.first;
+              }
 
-                        const SizedBox(height: 25),
-                        _buildQuickActions(context),
-                        const SizedBox(height: 25),
-                        _buildNotificationsInfo(),
-                        const SizedBox(height: 25),
-                        const ResidentRequestsWidget(),
-                        const SizedBox(height: 25),
-                        _buildSupportSection(context),
-                        const SizedBox(height: 10),
-                        const AppFooter(),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
+              // Determine State dynamically
+              ResidentHomeState state = ResidentHomeState.assignedNoInvoice;
+              if (staticData.state == ResidentHomeState.notAssigned) {
+                 state = ResidentHomeState.notAssigned; 
+              } else if (currentInvoice != null) {
+                 state = ResidentHomeState.invoiceExists;
+              }
+
+              // Create dynamic data object for UI
+              final dynamicData = ResidentDashboardData(
+                state: state,
+                user: staticData.user,
+                flat: staticData.flat,
+                property: staticData.property,
+                currentInvoice: currentInvoice,
+                outstandingAmount: outstandingAmount,
+              );
+              
+              return _buildDashboardBody(context, ref, dynamicData);
+            },
+            loading: () => const Center(child: CircularProgressIndicator()), // Or show static data while loading stream?
+            error: (e,s) => _buildDashboardBody(context, ref, staticData), // Fallback to static if stream fails
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, s) => Center(child: Text('Error: $e')),
+        error: (e, s) => Center(child: Text('${AppLocalizations.of(context)!.error}: $e')),
+      ),
+    );
+  }
+
+  Widget _buildDashboardBody(BuildContext context, WidgetRef ref, ResidentDashboardData data) {
+    return RefreshIndicator(
+      onRefresh: () async {
+        final user = ref.read(authRepositoryProvider).currentUser;
+        ref.invalidate(residentDashboardDataProvider(user?.uid ?? ''));
+        ref.invalidate(residentRequestsProvider(user?.uid ?? ''));
+        // Stream updates automatically, no need to invalidate
+        await Future.delayed(const Duration(milliseconds: 500));
+      },
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Column(
+          children: [
+            _buildHeader(context, ref, data), // Pass ref
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0),
+              child: Column(
+                children: [
+                  const SizedBox(height: 20),
+                  
+                  // Detailed Flat Info Card
+                  if (data.flat != null) 
+                    _buildFlatDetailsCard(context, data.flat!),
+
+                  const SizedBox(height: 10),
+                  
+                  // State-based Content
+                  _buildOutstandingDuesCard(context, data.outstandingAmount, data),
+                  const SizedBox(height: 15),
+                  
+                  // Payment Options (Advance & Due)
+                  if (data.state != ResidentHomeState.notAssigned)
+                     Padding(
+                       padding: const EdgeInsets.only(bottom: 15),
+                       child: _buildPaymentOptions(context, data),
+                     ),
+
+                  // Invoice Section
+                  if (data.state == ResidentHomeState.invoiceExists)
+                    _buildBillCard(context, data.currentInvoice)
+                  else if (data.state == ResidentHomeState.assignedNoInvoice)
+                    _buildNoInvoiceCard(context, ref, data)
+                  else
+                    _buildNotAssignedCard(context),
+
+                  const SizedBox(height: 15),
+                  // Requests Section (Moved here to be 'beside' the invoice option)
+                  const ResidentRequestsWidget(),
+
+                  const SizedBox(height: 25),
+                  _buildQuickActions(context),
+                  const SizedBox(height: 25),
+                  _buildNotificationsInfo(context),
+                  const SizedBox(height: 25),
+                  // ResidentRequestsWidget moved up
+                  _buildSupportSection(context),
+                  const SizedBox(height: 10),
+                  const AppFooter(),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildHeader(BuildContext context, WidgetRef ref, ResidentDashboardData data) {
+    final l10n = AppLocalizations.of(context)!;
     final propertyName = data.property?.name ?? 'Amar Bari';
     final flatLabel = data.flat?.label ?? '...';
     
@@ -93,9 +192,9 @@ class ResidentHomeScreen extends ConsumerWidget {
     Color statusColor = Colors.orange; // Not strictly used for styling container currently but kept for logic
 
     if (data.state == ResidentHomeState.notAssigned) {
-      statusText = 'NOT ASSIGNED';
+      statusText = l10n.statusNotAssigned;
     } else {
-      statusText = 'ACTIVE';
+      statusText = l10n.statusActive;
     }
 
     return Container(
@@ -143,7 +242,7 @@ class ResidentHomeScreen extends ConsumerWidget {
                       Icon(Icons.apartment, color: Colors.white.withOpacity(0.9), size: 16),
                       const SizedBox(width: 6),
                       Text(
-                        'Flat $flatLabel',
+                        '${l10n.flat} $flatLabel',
                         style: GoogleFonts.inter(
                           color: Colors.white.withOpacity(0.9),
                           fontSize: 15,
@@ -154,7 +253,7 @@ class ResidentHomeScreen extends ConsumerWidget {
                   )
                 else
                    Text(
-                     'Welcome Resident', 
+                     l10n.welcomeResident, 
                      style: GoogleFonts.inter(color: Colors.white70, fontSize: 14),
                    ),
               ],
@@ -175,7 +274,7 @@ class ResidentHomeScreen extends ConsumerWidget {
                       onTap: () {
                          ref.invalidate(residentDashboardDataProvider(data.user?.uid ?? ''));
                          ref.invalidate(residentRequestsProvider(data.user?.uid ?? ''));
-                         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Refreshing...'), duration: Duration(seconds: 1)));
+                         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.refreshing), duration: const Duration(seconds: 1)));
                       },
                       child: Container(
                         padding: const EdgeInsets.all(8),
@@ -231,6 +330,7 @@ class ResidentHomeScreen extends ConsumerWidget {
   }
 
   Widget _buildNotAssignedCard(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -242,20 +342,20 @@ class ResidentHomeScreen extends ConsumerWidget {
             const Icon(Icons.info_outline, size: 40, color: Colors.orange),
             const SizedBox(height: 16),
             Text(
-              "You are not assigned to a flat yet.",
+              l10n.notAssignedDetail,
               textAlign: TextAlign.center,
               style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
             Text(
-              "Please contact the property owner to get assigned.",
+              l10n.contactOwnerPrompt,
               textAlign: TextAlign.center,
               style: GoogleFonts.inter(fontSize: 14, color: Colors.grey[600]),
             ),
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: () => _handleNotAssignedTap(context),
-              child: const Text("Contact Owner"),
+              child: Text(l10n.contactOwner),
             )
           ],
         ),
@@ -264,6 +364,7 @@ class ResidentHomeScreen extends ConsumerWidget {
   }
 
   Widget _buildNoInvoiceCard(BuildContext context, WidgetRef ref, ResidentDashboardData data) {
+    final l10n = AppLocalizations.of(context)!;
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -275,14 +376,14 @@ class ResidentHomeScreen extends ConsumerWidget {
             const Icon(Icons.check_circle_outline, size: 40, color: Colors.green),
             const SizedBox(height: 16),
             Text(
-              "No invoice generated for this month.",
+              l10n.noInvoiceDetail,
               textAlign: TextAlign.center,
               style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: () => _handleInvoiceRequest(context, ref, data),
-              child: const Text("Request Invoice"),
+              child: Text(l10n.requestInvoice),
             )
           ],
         ),
@@ -291,6 +392,7 @@ class ResidentHomeScreen extends ConsumerWidget {
   }
 
   Widget _buildBillCard(BuildContext context, InvoiceModel? invoice) {
+    final l10n = AppLocalizations.of(context)!;
     if (invoice == null) return const SizedBox.shrink();
 
     final isPaid = invoice.status == 'paid';
@@ -331,7 +433,7 @@ class ResidentHomeScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Bill Summary',
+                      l10n.billSummary,
                       style: GoogleFonts.poppins(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
                     ),
                   ],
@@ -347,7 +449,7 @@ class ResidentHomeScreen extends ConsumerWidget {
                       Icon(statusIcon, color: isPaid ? const Color(0xFF11998e) : const Color(0xFFEB3349), size: 16),
                       const SizedBox(width: 4),
                       Text(
-                        statusText,
+                        statusText == 'PAID' ? l10n.statusActive : l10n.statusPending,
                         style: GoogleFonts.inter(
                           color: isPaid ? const Color(0xFF11998e) : const Color(0xFFEB3349),
                           fontWeight: FontWeight.bold,
@@ -365,10 +467,10 @@ class ResidentHomeScreen extends ConsumerWidget {
             padding: const EdgeInsets.all(24),
             child: Column(
               children: [
-                _buildRow('Rent', invoice.items.firstWhere((i) => i.key == 'Rent', orElse: () => const InvoiceItem(key: 'Rent', amount: 0)).amount),
+                _buildRow(l10n.rent, invoice.items.firstWhere((i) => i.key == 'Rent', orElse: () => const InvoiceItem(key: 'Rent', amount: 0)).amount),
                 const SizedBox(height: 12),
                 // Simplified Utility Sum
-                _buildRow('Utilities & Charges', invoice.totalAmount - invoice.items.firstWhere((i) => i.key == 'Rent', orElse: () => const InvoiceItem(key: 'Rent', amount: 0)).amount),
+                _buildRow(l10n.utilities, invoice.totalAmount - invoice.items.firstWhere((i) => i.key == 'Rent', orElse: () => const InvoiceItem(key: 'Rent', amount: 0)).amount),
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 16),
                   child: Divider(),
@@ -376,7 +478,7 @@ class ResidentHomeScreen extends ConsumerWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Total Payable', style: GoogleFonts.inter(fontSize: 16, color: Colors.grey[600])),
+                    Text(l10n.totalPayable, style: GoogleFonts.inter(fontSize: 16, color: Colors.grey[600])),
                     Text(
                       '৳${invoice.totalAmount.toStringAsFixed(0)}',
                       style: GoogleFonts.poppins(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.black87),
@@ -398,7 +500,7 @@ class ResidentHomeScreen extends ConsumerWidget {
                         shadowColor: const Color(0xFF2575FC).withOpacity(0.4),
                       ),
                       child: Text(
-                        'Pay Now',
+                        l10n.payNow,
                         style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white),
                       ),
                     ),
@@ -407,7 +509,7 @@ class ResidentHomeScreen extends ConsumerWidget {
                   OutlinedButton.icon(
                     onPressed: () {},
                     icon: const Icon(Icons.download_rounded),
-                    label: const Text('Download Receipt'),
+                    label: Text(l10n.downloadReceipt),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.green,
                       side: const BorderSide(color: Colors.green),
@@ -433,6 +535,7 @@ class ResidentHomeScreen extends ConsumerWidget {
   }
 
   Widget _buildQuickActions(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final actions = [
       {'icon': Icons.description_outlined, 'label': 'Documents', 'color': Colors.orange, 'route': '/resident/documents'},
       {'icon': Icons.history, 'label': 'History', 'color': Colors.blue, 'route': '/resident/history'},
@@ -443,7 +546,7 @@ class ResidentHomeScreen extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text("Quick Actions", style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600)),
+        Text(l10n.quickActions, style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600)),
         const SizedBox(height: 16),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -454,6 +557,7 @@ class ResidentHomeScreen extends ConsumerWidget {
   }
 
   Widget _buildFlatDetailsCard(BuildContext context, FlatModel flat) {
+    final l10n = AppLocalizations.of(context)!;
     double totalExpenses = flat.rentBase;
     flat.utilities.forEach((_, amount) => totalExpenses += amount);
 
@@ -483,7 +587,7 @@ class ResidentHomeScreen extends ConsumerWidget {
             child: const Icon(Icons.home_work_outlined, color: Color(0xFF1976D2)),
           ),
           title: Text(
-            'My Apartment Info',
+            l10n.apartmentInfo,
             style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 16),
           ),
           subtitle: Text(
@@ -497,14 +601,14 @@ class ResidentHomeScreen extends ConsumerWidget {
                 children: [
                   const Divider(),
                   const SizedBox(height: 8),
-                  _buildExpenseRow('Base Rent', flat.rentBase, isBold: true),
+                  _buildExpenseRow(l10n.baseRent, flat.rentBase, isBold: true),
                   const SizedBox(height: 8),
                   ...flat.utilities.entries.map((e) => Padding(
                     padding: const EdgeInsets.only(bottom: 8),
                     child: _buildExpenseRow('${e.key} Bill', e.value),
                   )),
                   const Divider(),
-                  _buildExpenseRow('Total Monthly Liability', totalExpenses, isTotal: true),
+                  _buildExpenseRow(l10n.totalLiability, totalExpenses, isTotal: true),
                 ],
               ),
             ),
@@ -563,7 +667,8 @@ class ResidentHomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildNotificationsInfo() {
+  Widget _buildNotificationsInfo(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -583,8 +688,8 @@ class ResidentHomeScreen extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text("Reminder", style: GoogleFonts.inter(fontSize: 12, color: Colors.grey)),
-                Text("Rent is due on 5th January", style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600)),
+                Text(l10n.reminder, style: GoogleFonts.inter(fontSize: 12, color: Colors.grey)),
+                Text(l10n.rentDueReminder, style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600)),
               ],
             ),
           ),
@@ -595,22 +700,23 @@ class ResidentHomeScreen extends ConsumerWidget {
   }
 
   void _handleNotAssignedTap(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     showDialog(
       context: context, 
       builder: (context) => AlertDialog(
-        title: const Text('Contact Owner'),
-        content: const Text('You are not assigned to a flat yet. You can send a message to your property owner here.'),
+        title: Text(l10n.contactOwner),
+        content: Text(l10n.notAssignedDetail),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context), 
-            child: const Text('Cancel')
+            child: Text(l10n.cancel)
           ),
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
               context.push('/resident/support');
             }, 
-            child: const Text('Send Message')
+            child: Text(l10n.sendMessage)
           ),
         ],
       )
@@ -618,6 +724,7 @@ class ResidentHomeScreen extends ConsumerWidget {
   }
 
   void _handleInvoiceRequest(BuildContext context, WidgetRef ref, ResidentDashboardData data) {
+    final l10n = AppLocalizations.of(context)!;
     if (data.property == null || data.user == null) return;
     
     // Create RequestModel
@@ -628,17 +735,18 @@ class ResidentHomeScreen extends ConsumerWidget {
       flatId: data.flat?.id,
       propertyId: data.property?.id,
       ownerId: data.property?.ownerId,
-      title: 'Invoice Request',
-      message: '${data.user!.name ?? "Resident"} requested invoice for ${DateFormat('MMMM yyyy').format(DateTime.now())}',
+      title: l10n.requestInvoice,
+      message: '${data.user!.name ?? l10n.statusNotAssigned} requested invoice',
       status: 'open',
       createdAt: DateTime.now(),
     );
 
     ref.read(requestRepositoryProvider).createRequest(request);
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Invoice Request Sent!')));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.invoiceRequestSent)));
   }
 
   void _showStatusDetails(BuildContext context, ResidentDashboardData data) {
+    final l10n = AppLocalizations.of(context)!;
     showModalBottomSheet(
       context: context, 
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
@@ -648,11 +756,11 @@ class ResidentHomeScreen extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-             Text('Account Status: ${data.state == ResidentHomeState.notAssigned ? "Pending/Not Assigned" : "Active"}', 
+             Text('${l10n.accountStatus}: ${data.state == ResidentHomeState.notAssigned ? l10n.statusPending : l10n.statusActive}', 
                style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold)),
              const SizedBox(height: 12),
              if (data.state == ResidentHomeState.notAssigned) ...[
-               const Text('You have not been assigned to a flat or your assignment is pending owner approval.'),
+               Text(l10n.notAssignedDetail),
                const SizedBox(height: 20),
                SizedBox(
                  width: double.infinity,
@@ -661,11 +769,11 @@ class ResidentHomeScreen extends ConsumerWidget {
                      Navigator.pop(context);
                      context.push('/resident/documents');
                    },
-                   child: const Text('Complete Documents'),
+                   child: Text(l10n.completeDocuments),
                  ),
                )
              ] else ...[
-               const Text('You are an active resident. You can view your bills and history.'),
+               Text(l10n.activeResidentMessage),
              ],
              const SizedBox(height: 20),
           ],
@@ -674,7 +782,50 @@ class ResidentHomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildOutstandingDuesCard(BuildContext context, double amount) {
+  Widget _buildPaymentOptions(BuildContext context, ResidentDashboardData data) {
+    final l10n = AppLocalizations.of(context)!;
+    bool canPayDue = data.currentInvoice != null && data.currentInvoice!.status != 'paid';
+    
+    return Row(
+      children: [
+        Expanded(
+          child: ElevatedButton.icon(
+            onPressed: canPayDue ? () => context.push('/resident/payment', extra: data.currentInvoice) : null,
+            icon: const Icon(Icons.payment),
+            label: Text(l10n.payDue),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red.shade600,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              disabledBackgroundColor: Colors.grey[300],
+            ),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: ElevatedButton.icon(
+            onPressed: () {
+               if (data.property?.ownerId != null) {
+                 context.push('/resident/payment', extra: {'ownerId': data.property!.ownerId, 'invoice': null});
+               }
+            },
+            icon: const Icon(Icons.account_balance_wallet_outlined),
+            label: Text(l10n.payAdvance),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF2575FC), // Match app theme
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildOutstandingDuesCard(BuildContext context, double amount, ResidentDashboardData data) {
+    final l10n = AppLocalizations.of(context)!;
     if (amount <= 0) {
       return Container(
         padding: const EdgeInsets.all(16),
@@ -689,7 +840,7 @@ class ResidentHomeScreen extends ConsumerWidget {
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                'You have no outstanding dues. Great job!',
+                l10n.noDuesMessage,
                 style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.green.shade800),
               ),
             ),
@@ -720,7 +871,7 @@ class ResidentHomeScreen extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Outstanding Dues',
+                      l10n.outstandingDues,
                       style: GoogleFonts.inter(color: Colors.red.shade800, fontSize: 13, fontWeight: FontWeight.w500),
                     ),
                     const SizedBox(height: 2),
@@ -750,7 +901,7 @@ class ResidentHomeScreen extends ConsumerWidget {
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
-              child: const Text('View Unpaid Bills'),
+              child: Text(l10n.viewUnpaidBills),
             ),
           )
         ],
@@ -844,32 +995,107 @@ class ResidentRequestsWidget extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
                   ),
-                  child: ListTile(
-                    title: Text(request.title, style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
-                    subtitle: Text(
-                      isClosed && request.response != null 
-                        ? "Response: ${request.response}" 
-                        : request.message,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.inter(fontSize: 13, color: isClosed ? Colors.green[700] : Colors.grey[600]),
-                    ),
-                    trailing: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: _getStatusColor(request.status).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        request.status.toUpperCase(),
-                        style: GoogleFonts.inter(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: _getStatusColor(request.status),
+                  child: Column(
+                    children: [
+                      ListTile(
+                        title: Text(request.title, style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+                        subtitle: Text(
+                          isClosed && request.response != null 
+                            ? "Response: ${request.response}" 
+                            : request.message,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(fontSize: 13, color: isClosed ? Colors.green[700] : Colors.grey[600]),
                         ),
+                        trailing: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: _getStatusColor(request.status).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            request.status.toUpperCase(),
+                            style: GoogleFonts.inter(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: _getStatusColor(request.status),
+                            ),
+                          ),
+                        ),
+                        onTap: () => _showRequestDetail(context, ref, request),
                       ),
-                    ),
-                    onTap: () => _showRequestDetail(context, request),
+                      if (request.invoiceId != null)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                          child: FutureBuilder<InvoiceModel?>(
+                            future: ref.read(residentRepositoryProvider).getInvoice(request.invoiceId!),
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState == ConnectionState.waiting) {
+                                return const LinearProgressIndicator(minHeight: 2);
+                              }
+                              if (snapshot.hasData && snapshot.data != null) {
+                                final invoice = snapshot.data!;
+                                final isPaid = invoice.status == 'paid';
+                                return Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.blue.withOpacity(0.05),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: Colors.blue.withOpacity(0.2)),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Icon(Icons.receipt_long, color: Colors.blue, size: 16),
+                                          const SizedBox(width: 8),
+                                          Text("Invoice Generated", style: GoogleFonts.poppins(fontWeight: FontWeight.w600, color: Colors.blue, fontSize: 13)),
+                                          const Spacer(),
+                                          if (isPaid)
+                                            const Icon(Icons.check_circle, color: Colors.green, size: 16)
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Text('Total: ৳${invoice.totalAmount.toStringAsFixed(0)}', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold)),
+                                          if (!isPaid)
+                                            SizedBox(
+                                              height: 36,
+                                              child: ElevatedButton(
+                                                onPressed: () => context.push('/resident/payment', extra: invoice),
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor: Colors.blue,
+                                                  foregroundColor: Colors.white,
+                                                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                                ),
+                                                child: const Text("Pay Now"),
+                                              ),
+                                            )
+                                          else
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                              decoration: BoxDecoration(
+                                                color: Colors.green.withOpacity(0.1),
+                                                borderRadius: BorderRadius.circular(8),
+                                                border: Border.all(color: Colors.green),
+                                              ),
+                                              child: const Text("PAID", style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 12)),
+                                            ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }
+                              return const SizedBox.shrink();
+                            },
+                          ),
+                        ),
+                    ],
                   ),
                 );
               },
@@ -891,7 +1117,7 @@ class ResidentRequestsWidget extends ConsumerWidget {
     }
   }
 
-  void _showRequestDetail(BuildContext context, RequestModel request) {
+  void _showRequestDetail(BuildContext context, WidgetRef ref, RequestModel request) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -906,6 +1132,51 @@ class ResidentRequestsWidget extends ConsumerWidget {
               const SizedBox(height: 16),
               Text("Owner Response:", style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: Colors.green)),
               Text(request.response!),
+            ],
+            if (request.invoiceId != null) ...[
+              const SizedBox(height: 16),
+              const Divider(),
+              FutureBuilder<InvoiceModel?>(
+                future: ref.read(residentRepositoryProvider).getInvoice(request.invoiceId!),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: Padding(padding: EdgeInsets.all(8.0), child: CircularProgressIndicator()));
+                  }
+                  if (snapshot.hasError || !snapshot.hasData || snapshot.data == null) {
+                    return const Text("Error loading invoice");
+                  }
+                  final invoice = snapshot.data!;
+                  return Container(
+                    margin: const EdgeInsets.only(top: 8),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withOpacity(0.05),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.blue.withOpacity(0.2)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: () {
+                              Navigator.pop(context);
+                              context.push('/resident/payment', extra: invoice);
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            ),
+                            child: const Text("View Full Bill"),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
             ],
           ],
         ),

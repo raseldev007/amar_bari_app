@@ -16,6 +16,7 @@ import 'package:amar_bari/models/request_model.dart';
 import 'package:amar_bari/models/lease_model.dart';
 // import 'package:amar_bari/models/flat_model.dart'; 
 import 'package:uuid/uuid.dart';
+import 'package:amar_bari/l10n/app_localizations.dart';
 import '../../../../core/theme/app_gradients.dart';
 import 'package:amar_bari/core/common_widgets/app_footer.dart';
 
@@ -58,23 +59,23 @@ class OwnerDashboardScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildKPICards(invoicesAsync),
+                    _buildKPICards(context, invoicesAsync),
                     const SizedBox(height: 30),
                     
                     // Residents Section (New)
-                    _buildSectionHeader(context, 'Residents', action: null), 
+                    _buildSectionHeader(context, AppLocalizations.of(context)!.residents, action: null), 
                     const SizedBox(height: 12),
                     recentResidentsAsync.when(
                       data: (flats) {
                         if (flats.isEmpty) {
-                           return const Text('No active residents found.', style: TextStyle(color: Colors.grey));
+                           return Text(AppLocalizations.of(context)!.noResidentsFound, style: const TextStyle(color: Colors.grey));
                         }
                         return Column(
                           children: flats.take(5).map((flat) => ResidentListItem(flat: flat)).toList(),
                         );
                       },
                       loading: () => const LinearProgressIndicator(),
-                      error: (e,s) => Text('Error: $e'),
+                      error: (e,s) => Text('${AppLocalizations.of(context)!.error}: $e'),
                     ),
                     
                     const SizedBox(height: 30),
@@ -86,7 +87,7 @@ class OwnerDashboardScreen extends ConsumerWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'My Properties',
+                          AppLocalizations.of(context)!.myProperties,
                           style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.black87),
                         ),
                         Container(
@@ -96,7 +97,7 @@ class OwnerDashboardScreen extends ConsumerWidget {
                           ),
                           child: IconButton(
                             icon: const Icon(Icons.add, color: Colors.blue),
-                             tooltip: "Add Property",
+                             tooltip: AppLocalizations.of(context)!.addProperty,
                              onPressed: () => context.push('/owner/add_property'),
                           ),
                         )
@@ -119,7 +120,7 @@ class OwnerDashboardScreen extends ConsumerWidget {
                          );
                       },
                       loading: () => const Center(child: CircularProgressIndicator()),
-                      error: (e, s) => Text('Error: $e'),
+                      error: (e, s) => Text('${AppLocalizations.of(context)!.error}: $e'),
                     ),
 
                     const SizedBox(height: 30),
@@ -143,8 +144,8 @@ class OwnerDashboardScreen extends ConsumerWidget {
         children: [
           const Icon(Icons.home_work_outlined, size: 48, color: Colors.grey),
           const SizedBox(height: 8),
-          const Text('No properties yet.', style: TextStyle(color: Colors.grey)),
-          TextButton(onPressed: () => context.push('/owner/add_property'), child: const Text('Add your first property'))
+          Text(AppLocalizations.of(context)!.noPropertiesYet, style: const TextStyle(color: Colors.grey)),
+          TextButton(onPressed: () => context.push('/owner/add_property'), child: Text(AppLocalizations.of(context)!.addFirstProperty))
         ],
       ),
     );
@@ -161,95 +162,103 @@ class OwnerDashboardScreen extends ConsumerWidget {
      );
   }
 
-  Widget _buildHeader(BuildContext context, WidgetRef ref, String? userName) {
+  Widget _buildHeader(BuildContext context, WidgetRef ref, String? displayName) {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 60, 20, 40),
       decoration: const BoxDecoration(
         gradient: AppGradients.primary,
         borderRadius: BorderRadius.only(
           bottomLeft: Radius.circular(30),
           bottomRight: Radius.circular(30),
         ),
-        boxShadow: [
-          BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 5)),
-        ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Welcome back,',
-                    style: GoogleFonts.inter(color: Colors.white70, fontSize: 16),
-                  ),
-                  const SizedBox(height: 5),
-                  Text(
-                    userName ?? 'Owner',
-                    style: GoogleFonts.poppins(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
               Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  IconButton(
-                    onPressed: () {
-                      // Manual Refresh Button logic
-                      ref.invalidate(ownerInvoicesProvider);
-                      ref.invalidate(ownerPropertiesProvider);
-                      ref.invalidate(ownerRecentAssignedFlatsProvider);
-                      ref.invalidate(ownerRequestsProvider);
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Refreshing data...'), duration: Duration(seconds: 1)));
-                    },
-                    icon: const Icon(Icons.refresh, color: Colors.white),
-                    tooltip: 'Refresh Data',
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        l10n.ownerDashboard,
+                        style: GoogleFonts.poppins(
+                          color: Colors.white,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        '${l10n.welcomeBack}, ${displayName ?? "Owner"}',
+                        style: GoogleFonts.inter(
+                          color: Colors.white.withOpacity(0.8),
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
                   ),
-                  IconButton(
-                    onPressed: () async {
-                      await ref.read(authRepositoryProvider).signOut();
-                    },
-                    icon: const Icon(Icons.logout, color: Colors.white),
-                    tooltip: 'Sign Out',
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.settings, color: Colors.white),
+                        onPressed: () => context.push('/settings'),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.refresh, color: Colors.white),
+                        onPressed: () {
+                          ref.invalidate(ownerInvoicesProvider);
+                          ref.invalidate(ownerPropertiesProvider);
+                          ref.invalidate(ownerRecentAssignedFlatsProvider);
+                          ref.invalidate(ownerRequestsProvider);
+                        },
+                      ),
+                      IconButton(
+                        onPressed: () async {
+                          await ref.read(authRepositoryProvider).signOut();
+                        },
+                        icon: const Icon(Icons.logout, color: Colors.white),
+                        tooltip: AppLocalizations.of(context)!.signOut,
+                      ),
+                    ],
                   ),
                 ],
               ),
+              const SizedBox(height: 20),
+              Container(
+                padding: const EdgeInsets.all(15),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.white.withOpacity(0.2)),
+                ),
+                child: InkWell(
+                  onTap: () => context.push('/owner/overview'),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.trending_up, color: Colors.greenAccent),
+                      const SizedBox(width: 10),
+                      Text(
+                        l10n.overview,
+                        style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w600),
+                      ),
+                      const Spacer(),
+                      const Icon(Icons.arrow_forward_ios, color: Colors.white54, size: 14),
+                    ],
+                  ),
+                ),
+              )
             ],
           ),
-          const SizedBox(height: 20),
-          Container(
-            padding: const EdgeInsets.all(15),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white.withOpacity(0.2)),
-            ),
-            child: InkWell(
-              onTap: () => context.push('/owner/overview'),
-              child: Row(
-                children: [
-                  const Icon(Icons.trending_up, color: Colors.greenAccent),
-                  const SizedBox(width: 10),
-                  Text(
-                    'Overview',
-                    style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w600),
-                  ),
-                  const Spacer(),
-                  const Icon(Icons.arrow_forward_ios, color: Colors.white54, size: 14),
-                ],
-              ),
-            ),
-          )
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildKPICards(AsyncValue<List<InvoiceModel>> invoicesAsync) {
+  Widget _buildKPICards(BuildContext context, AsyncValue<List<InvoiceModel>> invoicesAsync) {
     return invoicesAsync.when(
       data: (invoices) {
         double due = 0;
@@ -261,9 +270,9 @@ class OwnerDashboardScreen extends ConsumerWidget {
 
         return Row(
           children: [
-            _kpiCard('Total Due', '৳${due.toStringAsFixed(0)}', AppGradients.due, Icons.pending_actions),
+            _kpiCard(context, AppLocalizations.of(context)!.totalDue, '৳${due.toStringAsFixed(0)}', AppGradients.due, Icons.pending_actions),
             const SizedBox(width: 16),
-            _kpiCard('Collected', '৳${paid.toStringAsFixed(0)}', AppGradients.paid, Icons.check_circle_outline),
+            _kpiCard(context, AppLocalizations.of(context)!.collected, '৳${paid.toStringAsFixed(0)}', AppGradients.paid, Icons.check_circle_outline),
           ],
         );
       },
@@ -272,7 +281,7 @@ class OwnerDashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _kpiCard(String title, String value, LinearGradient gradient, IconData icon) {
+  Widget _kpiCard(BuildContext context, String label, String value, LinearGradient gradient, IconData icon) {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.all(20),
@@ -296,7 +305,7 @@ class OwnerDashboardScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 16),
             Text(value, style: GoogleFonts.poppins(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black87)),
-            Text(title, style: GoogleFonts.inter(fontSize: 13, color: Colors.grey[600])),
+            Text(label, style: GoogleFonts.inter(fontSize: 13, color: Colors.grey[600])),
           ],
         ),
       ),
@@ -372,7 +381,7 @@ class RecentRequestsWidget extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Recent Resident Requests',
+              AppLocalizations.of(context)!.recentRequests,
               style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.black87),
             ),
             const SizedBox(height: 12),
@@ -381,7 +390,7 @@ class RecentRequestsWidget extends ConsumerWidget {
         );
       },
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, s) => Center(child: Text('Error: $e')),
+      error: (e, s) => Center(child: Text('${AppLocalizations.of(context)!.error}: $e')),
     );
   }
 
@@ -435,7 +444,7 @@ class RecentRequestsWidget extends ConsumerWidget {
             children: [
               TextButton(
                 onPressed: () => _showRequestDetails(context, request),
-                child: const Text('View Details'),
+                child: Text(AppLocalizations.of(context)!.viewDetails),
               ),
               const Spacer(),
               Consumer(
@@ -449,12 +458,15 @@ class RecentRequestsWidget extends ConsumerWidget {
                         return ElevatedButton.icon(
                           onPressed: () {
                              // Navigate to Add Invoice with pre-filled details
-                             context.push('/owner/property/${flat.propertyId}/flat/${flat.id}/invoice/new');
+                             context.push(
+                               '/owner/property/${flat.propertyId}/flat/${flat.id}/invoice/new',
+                               extra: {'requestId': request.id},
+                             );
                              // Optionally mark as in progress automatically
                              ref.read(requestRepositoryProvider).updateRequestStatus(request.id, 'in_progress');
                           },
                           icon: const Icon(Icons.receipt_long, size: 16),
-                          label: const Text('Create Invoice'),
+                          label: Text(AppLocalizations.of(context)!.createInvoice),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.blue[700],
                             foregroundColor: Colors.white,
@@ -478,7 +490,7 @@ class RecentRequestsWidget extends ConsumerWidget {
                                Icon(Icons.check_circle, size: 16, color: Colors.grey[600]),
                                const SizedBox(width: 8),
                                Text(
-                                 'Assigned Resident',
+                                 AppLocalizations.of(context)!.assignedResident,
                                  style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: Colors.grey[700], fontSize: 13),
                                ),
                              ],
@@ -489,7 +501,7 @@ class RecentRequestsWidget extends ConsumerWidget {
                       return ElevatedButton.icon(
                         onPressed: () => _showLeaseDialog(context, ref, request),
                         icon: const Icon(Icons.vpn_key, size: 16),
-                        label: const Text('Lease to Flat'),
+                        label: Text(AppLocalizations.of(context)!.leaseToFlat),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF6A11CB),
                           foregroundColor: Colors.white,
@@ -564,7 +576,7 @@ class RecentRequestsWidget extends ConsumerWidget {
                   // --- Resident & Flat Info (New) ---
                   residentAsync.when(
                     data: (user) {
-                       if (user == null) return const Text("Resident: Unknown");
+                       if (user == null) return Text(AppLocalizations.of(context)!.residentUnknown);
                        return Container(
                          padding: const EdgeInsets.all(12),
                          decoration: BoxDecoration(
@@ -776,7 +788,6 @@ class _LeaseFlatDialogState extends ConsumerState<LeaseFlatDialog> {
     // Line 533 of original: final propertiesAsync = ref.watch(ownerPropertiesProvider);
     // My new owner_dashboard_providers also has ownerPropertiesProvider.
     // If I import both, I might have conflict?
-    // I imported owner_dashboard_providers.dart.
     // I did NOT import 'property_repository.dart' (commented out).
     // So it should use the new provider.
     // New provider returns Stream<List<PropertyModel>>.

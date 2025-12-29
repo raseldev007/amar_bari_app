@@ -25,6 +25,15 @@ class RequestRepository {
     });
   }
 
+  Future<void> resolveRequestWithInvoice(String requestId, String invoiceId) async {
+    await _firestore.collection('requests').doc(requestId).update({
+      'status': 'closed',
+      'response': 'Invoice Created',
+      'invoiceId': invoiceId,
+      'respondedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
   Future<void> createNotification(Map<String, dynamic> data) async {
     await _firestore.collection('notifications').add({
       ...data,

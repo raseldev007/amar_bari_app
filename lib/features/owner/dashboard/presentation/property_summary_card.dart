@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../models/property_model.dart';
 import '../data/owner_dashboard_providers.dart';
+import 'package:amar_bari/l10n/app_localizations.dart';
 
 class PropertySummaryCard extends ConsumerWidget {
   final PropertyModel property;
@@ -64,9 +65,9 @@ class PropertySummaryCard extends ConsumerWidget {
                 data: (stats) => Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    _buildStatItem('Total Flats', stats.totalFlats.toString(), Colors.blue),
-                    _buildStatItem('Occupied', stats.occupiedFlats.toString(), Colors.green),
-                    _buildStatItem('Residents', stats.residentsCount.toString(), Colors.purple),
+                    _buildStatItem(AppLocalizations.of(context)!.totalDue, stats.totalFlats.toString(), Colors.blue),
+                    _buildStatItem(AppLocalizations.of(context)!.statusActive, stats.occupiedFlats.toString(), Colors.green),
+                    _buildStatItem(AppLocalizations.of(context)!.residents, stats.residentsCount.toString(), Colors.purple),
                   ],
                 ),
                 loading: () => const Center(
@@ -76,7 +77,7 @@ class PropertySummaryCard extends ConsumerWidget {
                     child: CircularProgressIndicator(strokeWidth: 2)
                   ),
                 ),
-                error: (e, _) => Text('Error loading stats', style: TextStyle(color: Colors.red[300], fontSize: 12)),
+                error: (e, _) => Text(AppLocalizations.of(context)!.error, style: TextStyle(color: Colors.red[300], fontSize: 12)),
               ),
             ],
           ),
