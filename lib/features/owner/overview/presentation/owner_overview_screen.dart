@@ -10,6 +10,10 @@ import '../../../auth/data/auth_repository.dart';
 import '../../../resident/requests/data/request_repository.dart';
 import '../../../../models/request_model.dart';
 
+import 'package:amar_bari/features/owner/dashboard/data/owner_dashboard_providers.dart';
+import 'package:amar_bari/features/owner/flats/data/flat_repository.dart';
+import 'work_list_item.dart';
+
 class OwnerOverviewScreen extends ConsumerStatefulWidget {
   const OwnerOverviewScreen({super.key});
 
@@ -25,6 +29,12 @@ class _OwnerOverviewScreenState extends ConsumerState<OwnerOverviewScreen> {
     final user = ref.watch(authRepositoryProvider).currentUser;
     final String currentMonthKey = DateFormat('yyyy-MM').format(_selectedDate);
     final invoicesAsync = ref.watch(ownerInvoicesProvider(user?.uid ?? ''));
+    final propertiesAsync = ref.watch(ownerPropertiesProvider);
+
+    final propertyNames = propertiesAsync.maybeWhen(
+      data: (props) => {for (var p in props) p.id: p.name},
+      orElse: () => <String, String>{},
+    );
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
@@ -56,13 +66,13 @@ class _OwnerOverviewScreenState extends ConsumerState<OwnerOverviewScreen> {
               children: [
                 _buildMonthSelector(),
                 const SizedBox(height: 20),
-                _buildKPIs(invoices),
+                _buildKPIs(context, invoices),
                 const SizedBox(height: 20),
                 _buildActionBar(context, user?.uid, currentMonthKey, invoices),
                 const SizedBox(height: 30),
                 Text("Today's Work", style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 10),
-                _buildWorkList(allInvoices), // Pass ALL invoices to see overdue from past months too
+                _buildWorkList(allInvoices, propertyNames), // Pass ALL invoices to see overdue from past months too
                 const SizedBox(height: 30),
                 Text("Resident Messages", style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 10),
@@ -111,49 +121,73 @@ class _OwnerOverviewScreenState extends ConsumerState<OwnerOverviewScreen> {
     );
   }
 
-  Widget _buildKPIs(List<InvoiceModel> invoices) {
+  Widget _buildKPIs(BuildContext context, List<InvoiceModel> invoices) {
     double due = 0;
     double collected = 0;
-    int overdueCount = 0;
+    
+    final dueInvoices = <InvoiceModel>[];
+    final paidInvoices = <InvoiceModel>[];
 
     for (var inv in invoices) {
-      if (inv.status == 'paid') collected += inv.totalAmount;
-      if (inv.status == 'due' || inv.status == 'late') due += inv.totalAmount;
-      if (inv.status == 'late') overdueCount++;
+      if (inv.status == 'paid') {
+        collected += inv.totalAmount;
+        paidInvoices.add(inv);
+      }
+      if (inv.status == 'due' || inv.status == 'late') {
+        due += inv.totalAmount;
+        dueInvoices.add(inv);
+      }
     }
 
     return Row(
       children: [
-        _kpiCard("Total Due", "৳${due.toStringAsFixed(0)}", AppGradients.due, Icons.pending_actions),
+        _kpiCard(
+          context, 
+          "Total Due", "৳${due.toStringAsFixed(0)}", 
+          AppGradients.due, Icons.pending_actions,
+          () => context.push('/owner/overview/filtered', extra: {'title': 'Unpaid Residents', 'invoices': dueInvoices}),
+        ),
         const SizedBox(width: 12),
-        _kpiCard("Collected", "৳${collected.toStringAsFixed(0)}", AppGradients.paid, Icons.check_circle_outline),
-        // const SizedBox(width: 12),
-        // _kpiCard("Overdue", "$overdueCount", AppGradients.primary, Icons.warning_amber_rounded),
+        _kpiCard(
+          context, 
+          "Collected", "৳${collected.toStringAsFixed(0)}", 
+          AppGradients.paid, Icons.check_circle_outline,
+          () => context.push('/owner/overview/filtered', extra: {'title': 'Collected Payments', 'invoices': paidInvoices}),
+        ),
       ],
     );
   }
 
-  Widget _kpiCard(String title, String value, LinearGradient gradient, IconData icon) {
+  Widget _kpiCard(BuildContext context, String title, String value, LinearGradient gradient, IconData icon, VoidCallback onTap) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(gradient: gradient, borderRadius: BorderRadius.circular(8)),
-              child: Icon(icon, color: Colors.white, size: 20),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(16),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                   Container(
+                     padding: const EdgeInsets.all(8),
+                     decoration: BoxDecoration(gradient: gradient, borderRadius: BorderRadius.circular(8)),
+                     child: Icon(icon, color: Colors.white, size: 20),
+                   ),
+                   const SizedBox(height: 12),
+                   Text(value, style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.bold)),
+                   Text(title, style: GoogleFonts.inter(fontSize: 12, color: Colors.grey[600])),
+                ],
+              ),
             ),
-            const SizedBox(height: 12),
-            Text(value, style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.bold)),
-            Text(title, style: GoogleFonts.inter(fontSize: 12, color: Colors.grey[600])),
-          ],
+          ),
         ),
       ),
     );
@@ -224,7 +258,7 @@ class _OwnerOverviewScreenState extends ConsumerState<OwnerOverviewScreen> {
     );
   }
 
-  Widget _buildWorkList(List<InvoiceModel> allInvoices) {
+  Widget _buildWorkList(List<InvoiceModel> allInvoices, Map<String, String> propertyNames) {
     // Logic: Filter status=late OR status=due. Sort by late first.
     final workItems = allInvoices.where((i) => i.status == 'due' || i.status == 'late').toList();
     
@@ -249,66 +283,12 @@ class _OwnerOverviewScreenState extends ConsumerState<OwnerOverviewScreen> {
       physics: const NeverScrollableScrollPhysics(),
       itemCount: workItems.length,
       itemBuilder: (context, index) {
-        final item = workItems[index];
-        final isLate = item.status == 'late'; // Simplify logic, in real query we'd check date vs now if status not updated
-        // For MVP, if dueDate < now and status is due, treat as late visually?
-        final actuallyLate = item.dueDate.isBefore(DateTime.now()) && item.status == 'due'; 
-        
-        return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: actuallyLate || isLate ? Border.all(color: Colors.red.withOpacity(0.3)) : null,
-            boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.05), blurRadius: 5)],
-          ),
-          child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            title: Text(
-              item.propertyId, // Ideally Property Name via lookup/join
-              style: GoogleFonts.inter(fontWeight: FontWeight.w600),
-            ),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text("Flat: ${item.flatId} • ${DateFormat('MMM d').format(item.dueDate)}", style: GoogleFonts.inter(fontSize: 12)),
-                Text("৳${item.totalAmount.toStringAsFixed(0)}", style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: Colors.blueGrey)),
-              ],
-            ),
-            leading: CircleAvatar(
-              backgroundColor: actuallyLate || isLate ? Colors.red.withOpacity(0.1) : Colors.orange.withOpacity(0.1),
-              child: Icon(
-                actuallyLate || isLate ? Icons.warning : Icons.schedule,
-                color: actuallyLate || isLate ? Colors.red : Colors.orange,
-              ),
-            ),
-            trailing: PopupMenuButton(
-              onSelected: (value) async {
-                if (value == 'paid') {
-                  await ref.read(invoiceRepositoryProvider).markAsPaid(item.id, item.totalAmount);
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Invoice marked as Paid')));
-                  }
-                } else if (value == 'remind') {
-                  await ref.read(invoiceRepositoryProvider).sendReminder(item.id, item.residentId, item.monthKey);
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Reminder Sent')));
-                  }
-                } else if (value == 'details') {
-                  context.push('/owner/property/${item.propertyId}/flat/${item.flatId}/invoice/${item.id}', extra: item);
-                }
-              },
-              itemBuilder: (context) => [
-                const PopupMenuItem(value: 'paid', child: Text('Mark Paid')),
-                const PopupMenuItem(value: 'remind', child: Text('Send Reminder')),
-                const PopupMenuItem(value: 'details', child: Text('View Details')),
-              ],
-            ),
-          ),
-        );
+        return WorkListItem(invoice: workItems[index], propertyName: propertyNames[workItems[index].propertyId]);
       },
     );
   }
+
+
 
   Widget _buildMessagesList(String? ownerId) {
     if (ownerId == null) return const SizedBox();
@@ -519,3 +499,5 @@ class _OwnerOverviewScreenState extends ConsumerState<OwnerOverviewScreen> {
     );
   }
 }
+
+

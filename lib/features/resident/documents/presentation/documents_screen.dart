@@ -18,7 +18,9 @@ class DocumentsScreen extends ConsumerStatefulWidget {
 class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nidController = TextEditingController();
-  bool _isLoading = false;
+  bool _isNidLoading = false;
+  bool _isPhotoLoading = false;
+  bool _isSaving = false;
   String? _localNidFrontUrl;
   String? _localPhotoUrl;
 
@@ -76,9 +78,9 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                   Text("Attachments", style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
                   const SizedBox(height: 12),
                   
-                  _buildUploadPlaceholder("NID Front Photo", _localNidFrontUrl != null, 'nid_front', user?.uid),
+                  _buildUploadPlaceholder("NID Front Photo", _localNidFrontUrl != null, 'nid_front', user?.uid, _isNidLoading),
                   const SizedBox(height: 12),
-                  _buildUploadPlaceholder("Passport Size Photo", _localPhotoUrl != null, 'passport_photo', user?.uid),
+                  _buildUploadPlaceholder("Passport Size Photo", _localPhotoUrl != null, 'passport_photo', user?.uid, _isPhotoLoading),
                   
                   const SizedBox(height: 40),
                   
@@ -86,12 +88,12 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                     width: double.infinity,
                     height: 54,
                     child: ElevatedButton(
-                      onPressed: _isLoading ? null : () => _save(user?.uid),
+                      onPressed: (_isSaving || _isNidLoading || _isPhotoLoading) ? null : () => _save(user?.uid),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF6A11CB),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                       ),
-                      child: _isLoading 
+                      child: _isSaving
                         ? const CircularProgressIndicator(color: Colors.white) 
                         : Text('Save Documents', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
                     ),
@@ -124,9 +126,9 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
     );
   }
 
-  Widget _buildUploadPlaceholder(String label, bool uploaded, String docType, String? uid) {
+  Widget _buildUploadPlaceholder(String label, bool uploaded, String docType, String? uid, bool isLoading) {
     return InkWell(
-      onTap: () => _pickAndUpload(uid!, docType),
+      onTap: isLoading ? null : () => _pickAndUpload(uid!, docType),
       borderRadius: BorderRadius.circular(12),
       child: Container(
         padding: const EdgeInsets.all(16),
@@ -142,7 +144,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
             const SizedBox(width: 16),
             Text(label, style: GoogleFonts.inter(color: Colors.black87)),
             const Spacer(),
-            if (_isLoading)
+            if (isLoading)
                const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
             else if (!uploaded)
                Text("Tap to upload", style: GoogleFonts.inter(color: Colors.blue, fontSize: 12, fontWeight: FontWeight.w500))
@@ -155,17 +157,26 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
   }
 
   Future<void> _pickAndUpload(String uid, String docType) async {
-    final picker = ImagePicker();
-    final XFile? image = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
-    
-    if (image == null) return;
-
-    setState(() => _isLoading = true);
-
+    print("Picking image for $docType...");
     try {
+      final picker = ImagePicker();
+      final XFile? image = await picker.pickImage(source: ImageSource.gallery, imageQuality: 25);
+      
+      if (image == null) {
+        print("User canceled image picking.");
+        return;
+      }
+      print("Image picked: ${image.path} (Web name: ${image.name})");
+
+      setState(() {
+         if (docType == 'nid_front') _isNidLoading = true;
+         if (docType == 'passport_photo') _isPhotoLoading = true;
+      });
+
       // 1. Upload to Storage
-      // Pass XFile directly to repository to handle web/mobile differences
+      print("Uploading to storage path: docs/$uid/$docType.jpg");
       final url = await ref.read(documentRepositoryProvider).uploadDocument(uid, docType, image);
+      print("Upload successful: $url");
 
       if (docType == 'nid_front') {
         _localNidFrontUrl = url;
@@ -173,21 +184,24 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
         _localPhotoUrl = url;
       }
       
-      // Removed direct Firestore write here. 
-      // We only update local state. User MUST click "Save Documents" to persist.
-      
-      // We force a rebuild to show the "Uploaded" status based on local state variables
       setState(() {}); 
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Upload Successful! Don\'t forget to click Save.')));
       }
-    } catch (e) {
+    } catch (e, stack) {
+      print("Upload Error: $e");
+      print(stack);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Upload Failed: $e')));
       }
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() {
+           if (docType == 'nid_front') _isNidLoading = false;
+           if (docType == 'passport_photo') _isPhotoLoading = false;
+        });
+      }
     }
   }
 
@@ -200,7 +214,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
       return;
     }
 
-    setState(() => _isLoading = true);
+    setState(() => _isSaving = true);
 
     try {
       final doc = ResidentDocumentModel(
@@ -213,10 +227,6 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
       await ref.read(documentRepositoryProvider).saveDocuments(uid, doc);
       ref.invalidate(residentDocumentsProvider(uid));
       
-      // Notify Owner (Optional but recommended)
-      // Logic: Fetch flat -> property -> ownerId -> create notification.
-      // Skipping for strict MVP simplicity unless requested, focusing on saving data correctly.
-
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Documents Submitted for Verification!')));
         Navigator.pop(context);
@@ -226,7 +236,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) setState(() => _isSaving = false);
     }
   }
 }

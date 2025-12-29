@@ -26,47 +26,55 @@ class ResidentHomeScreen extends ConsumerWidget {
       backgroundColor: const Color(0xFFF5F7FA), // Soft grey background
       body: dashboardDataAsync.when(
         data: (data) {
-          return SingleChildScrollView(
-            child: Column(
-              children: [
-                _buildHeader(context, data),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                  child: Column(
-                    children: [
-                      const SizedBox(height: 20),
-                      
-                      // Detailed Flat Info Card
-                      if (data.flat != null) 
-                        _buildFlatDetailsCard(context, data.flat!),
+          return RefreshIndicator(
+            onRefresh: () async {
+              ref.invalidate(residentDashboardDataProvider(user?.uid ?? ''));
+              ref.invalidate(residentRequestsProvider(user?.uid ?? ''));
+              await Future.delayed(const Duration(milliseconds: 500));
+            },
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: Column(
+                children: [
+                  _buildHeader(context, ref, data), // Pass ref
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                    child: Column(
+                      children: [
+                        const SizedBox(height: 20),
+                        
+                        // Detailed Flat Info Card
+                        if (data.flat != null) 
+                          _buildFlatDetailsCard(context, data.flat!),
 
-                      const SizedBox(height: 10),
-                      
-                      // State-based Content
-                      _buildOutstandingDuesCard(context, data.outstandingAmount),
-                      const SizedBox(height: 15),
+                        const SizedBox(height: 10),
+                        
+                        // State-based Content
+                        _buildOutstandingDuesCard(context, data.outstandingAmount),
+                        const SizedBox(height: 15),
 
-                      if (data.state == ResidentHomeState.invoiceExists)
-                        _buildBillCard(context, data.currentInvoice)
-                      else if (data.state == ResidentHomeState.assignedNoInvoice)
-                        _buildNoInvoiceCard(context, ref, data)
-                      else
-                        _buildNotAssignedCard(context),
+                        if (data.state == ResidentHomeState.invoiceExists)
+                          _buildBillCard(context, data.currentInvoice)
+                        else if (data.state == ResidentHomeState.assignedNoInvoice)
+                          _buildNoInvoiceCard(context, ref, data)
+                        else
+                          _buildNotAssignedCard(context),
 
-                      const SizedBox(height: 25),
-                      _buildQuickActions(context),
-                      const SizedBox(height: 25),
-                      _buildNotificationsInfo(),
-                      const SizedBox(height: 25),
-                      const ResidentRequestsWidget(),
-                      const SizedBox(height: 25),
-                      _buildSupportSection(context),
-                      const SizedBox(height: 10),
-                      const AppFooter(),
-                    ],
+                        const SizedBox(height: 25),
+                        _buildQuickActions(context),
+                        const SizedBox(height: 25),
+                        _buildNotificationsInfo(),
+                        const SizedBox(height: 25),
+                        const ResidentRequestsWidget(),
+                        const SizedBox(height: 25),
+                        _buildSupportSection(context),
+                        const SizedBox(height: 10),
+                        const AppFooter(),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           );
         },
@@ -76,7 +84,7 @@ class ResidentHomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildHeader(BuildContext context, ResidentDashboardData data) {
+  Widget _buildHeader(BuildContext context, WidgetRef ref, ResidentDashboardData data) {
     final propertyName = data.property?.name ?? 'Amar Bari';
     final flatLabel = data.flat?.label ?? '...';
     
@@ -152,24 +160,46 @@ class ResidentHomeScreen extends ConsumerWidget {
             ),
           ),
           
-          // RIGHT COLUMN: Profile Icon + Status Chip
+          // RIGHT COLUMN: Refresh + Profile + Status
           const SizedBox(width: 16), // Spacing between columns
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Profile Icon
-              InkWell(
-                onTap: () => context.push('/resident/profile'),
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.person, color: Colors.white, size: 24),
-                ),
-              ),
+               Row(
+                 mainAxisSize: MainAxisSize.min,
+                 children: [
+                    // Refresh Button
+                    InkWell(
+                      onTap: () {
+                         ref.invalidate(residentDashboardDataProvider(data.user?.uid ?? ''));
+                         ref.invalidate(residentRequestsProvider(data.user?.uid ?? ''));
+                         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Refreshing...'), duration: Duration(seconds: 1)));
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.refresh, color: Colors.white, size: 24),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    // Profile Icon
+                    InkWell(
+                      onTap: () => context.push('/resident/profile'),
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.person, color: Colors.white, size: 24),
+                      ),
+                    ),
+                 ],
+               ),
               const SizedBox(height: 12),
               // Status Chip
               InkWell(

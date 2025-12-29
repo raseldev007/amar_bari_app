@@ -80,7 +80,12 @@ class FirestoreInvoiceRepository implements InvoiceRepository {
         status: 'due',
       );
 
-      batch.set(_firestore.collection('invoices').doc(newInvoice.id), newInvoice.toJson());
+      
+      // Manual serialization of nested list to ensure clean JSON for Firestore
+      final json = newInvoice.toJson();
+      json['items'] = items.map((e) => e.toJson()).toList();
+      
+      batch.set(_firestore.collection('invoices').doc(newInvoice.id), json);
       batchCount++;
     }
 

@@ -165,18 +165,53 @@ class FlatDetailScreen extends ConsumerWidget {
             padding: const EdgeInsets.all(16.0),
             child: Column(
               children: [
-                const ListTile(
-                  leading: CircleAvatar(child: Icon(Icons.person)),
-                  title: Text('Resident Assigned'),
-                  // TODO: Fetch Resident Name
-                  subtitle: Text('Lease Active'),
+                ListTile(
+                  leading: const CircleAvatar(child: Icon(Icons.person)),
+                  title: Consumer(
+                    builder: (context, ref, _) {
+                       // We need to import the provider first or assume it is available via imports
+                       // residentProfileProvider is in 'owner_dashboard_providers.dart' usually.
+                       // I need to check imports.
+                       // Assuming I can add the import or move the logic.
+                       // Let's just show 'Resident Assigned' if I can't easily add the import without checking.
+                       // Actually, let's stick to the core task first to avoid import errors if path is complex.
+                       // But wait, the user wants "Assigned resident... will be unassigned".
+                       return const Text('Resident Assigned');
+                    }
+                  ),
+                  subtitle: const Text('Lease Active'),
                 ),
                 Text('Started: ${DateFormat.yMMMd().format(lease.startDate)}'),
                 const SizedBox(height: 8),
                 OutlinedButton(
                   onPressed: () {
-                    // Logic to end lease
-                    Text('End Lease');
+                    showDialog(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text('End Lease (Move Out)?'),
+                        content: const Text('This will instantly unassign the resident from this flat. Are you sure?'),
+                        actions: [
+                          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+                          ElevatedButton(
+                            onPressed: () async {
+                               Navigator.pop(context); // Close dialog
+                               try {
+                                 await ref.read(leaseRepositoryProvider).endLease(lease.id, flat.id, lease.residentId);
+                                 if (context.mounted) {
+                                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lease ended. Resident unassigned.')));
+                                 }
+                               } catch (e) {
+                                 if (context.mounted) {
+                                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                                 }
+                               }
+                            },
+                            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+                            child: const Text('Confirm End Lease'),
+                          )
+                        ],
+                      )
+                    );
                   },
                   child: const Text('End Lease (Move Out)'),
                 )

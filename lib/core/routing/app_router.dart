@@ -12,6 +12,7 @@ import '../../features/owner/flats/presentation/add_edit_flat_screen.dart';
 import '../../features/owner/flats/presentation/flat_details_screen.dart';
 import '../../features/owner/tenants/presentation/assign_tenant_screen.dart';
 import '../../features/owner/invoices/presentation/invoice_detail_screen.dart';
+import '../../features/owner/invoices/presentation/owner_invoice_list_screen.dart';
 import '../../features/owner/overview/presentation/owner_overview_screen.dart';
 import '../../features/resident/payments/presentation/submit_payment_screen.dart';
 import 'package:amar_bari/features/owner/flats/data/flat_repository.dart';
@@ -26,6 +27,7 @@ import '../../features/resident/payments/presentation/payment_history_screen.dar
 import '../../features/resident/support/presentation/support_screen.dart';
 import '../../features/resident/profile/presentation/resident_profile_screen.dart';
 import '../../features/support/presentation/contact_developer_screen.dart';
+import '../../features/owner/dashboard/presentation/resident_details_screen.dart';
 
 // Keys for navigation
 final rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -111,6 +113,18 @@ final goRouterProvider = Provider<GoRouter>((ref) {
            GoRoute(
              path: 'overview',
              builder: (context, state) => const OwnerOverviewScreen(),
+             routes: [
+               GoRoute(
+                 path: 'filtered',
+                 builder: (context, state) {
+                    final extras = state.extra as Map<String, dynamic>;
+                    return OwnerInvoiceListScreen(
+                      title: extras['title'] as String,
+                      invoices: extras['invoices'] as List<InvoiceModel>,
+                    );
+                 },
+               ),
+             ],
            ),
            GoRoute(
              path: 'add_property',
@@ -160,6 +174,16 @@ final goRouterProvider = Provider<GoRouter>((ref) {
                  ]
                ),
              ]
+           ),
+           GoRoute(
+             path: 'residents/:residentId',
+             builder: (context, state) {
+               final flat = state.extra as FlatModel?;
+               return ResidentDetailsScreen(
+                 residentId: state.pathParameters['residentId']!,
+                 flatExtra: flat,
+               );
+             },
            ),
         ],
       ),

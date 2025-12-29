@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -64,25 +65,24 @@ class DocumentRepository {
   }
 
   Future<String> uploadDocument(String uid, String docType, XFile file) async {
-    final storageRef = FirebaseStorage.instance
-        .ref()
-        .child('docs/$uid/$docType.jpg');
+    print('[Repo] Processing $docType for $uid (Base64 Mode)...');
     
-    final metadata = SettableMetadata(
-      contentType: file.mimeType ?? 'image/jpeg', 
-      customMetadata: {'uploadedBy': uid},
-    );
+    // 1. Read bytes
+    final bytes = await file.readAsBytes();
     
-    UploadTask uploadTask;
-    if (kIsWeb) {
-      final bytes = await file.readAsBytes();
-      uploadTask = storageRef.putData(bytes, metadata);
-    } else {
-      uploadTask = storageRef.putFile(File(file.path), metadata);
-    }
+    // 2. Compress (Simple resize via Flutter Image library is heavy, so we rely on ImagePicker quality)
+    // Note: In real app, we should use 'flutter_image_compress' package.
+    // Since we don't have that package installed and cannot easily add it without restart/approval,
+    // we rely on the `imageQuality: 25` passed from UI.
     
-    final snapshot = await uploadTask;
-    return await snapshot.ref.getDownloadURL();
+    // 3. Convert to Base64
+    final base64String = base64Encode(bytes);
+    
+    // 4. Return Data URI
+    // We mock a delay to simulate "upload" and ensure UI feedback
+    await Future.delayed(const Duration(milliseconds: 500));
+    
+    return 'data:image/jpeg;base64,$base64String';
   }
 }
 

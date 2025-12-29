@@ -20,21 +20,28 @@ _FlatModel _$FlatModelFromJson(Map<String, dynamic> json) => _FlatModel(
       ) ??
       const {},
   dueDay: (json['dueDay'] as num?)?.toInt() ?? 1,
+  residentId: json['residentId'] as String?,
   createdAt: const TimestampConverter().fromJson(
     json['createdAt'] as Timestamp,
   ),
+  updatedAt: const NullableTimestampConverter().fromJson(
+    json['updatedAt'] as Timestamp?,
+  ),
 );
 
-Map<String, dynamic> _$FlatModelToJson(_FlatModel instance) =>
-    <String, dynamic>{
-      'id': instance.id,
-      'propertyId': instance.propertyId,
-      'ownerId': instance.ownerId,
-      'label': instance.label,
-      'status': instance.status,
-      'currentLeaseId': instance.currentLeaseId,
-      'rentBase': instance.rentBase,
-      'utilities': instance.utilities,
-      'dueDay': instance.dueDay,
-      'createdAt': const TimestampConverter().toJson(instance.createdAt),
-    };
+Map<String, dynamic> _$FlatModelToJson(
+  _FlatModel instance,
+) => <String, dynamic>{
+  'id': instance.id,
+  'propertyId': instance.propertyId,
+  'ownerId': instance.ownerId,
+  'label': instance.label,
+  'status': instance.status,
+  'currentLeaseId': instance.currentLeaseId,
+  'rentBase': instance.rentBase,
+  'utilities': instance.utilities,
+  'dueDay': instance.dueDay,
+  'residentId': instance.residentId,
+  'createdAt': const TimestampConverter().toJson(instance.createdAt),
+  'updatedAt': const NullableTimestampConverter().toJson(instance.updatedAt),
+};

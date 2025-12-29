@@ -6,7 +6,7 @@ import '../../../../models/flat_model.dart';
 abstract class LeaseRepository {
   Future<void> createLease(LeaseModel lease, FlatModel flat);
   Future<LeaseModel?> getActiveLease(String flatId);
-  Future<void> endLease(String leaseId, String flatId);
+  Future<void> endLease(String leaseId, String flatId, String residentId);
 }
 
 class FirestoreLeaseRepository implements LeaseRepository {
@@ -27,6 +27,8 @@ class FirestoreLeaseRepository implements LeaseRepository {
     batch.update(flatRef, {
       'status': 'occupied',
       'currentLeaseId': lease.id,
+      'residentId': lease.residentId,
+      'updatedAt': FieldValue.serverTimestamp(),
     });
 
     // 3. Update Resident User Doc (Assigned IDs)
@@ -53,7 +55,7 @@ class FirestoreLeaseRepository implements LeaseRepository {
   }
 
   @override
-  Future<void> endLease(String leaseId, String flatId) async {
+  Future<void> endLease(String leaseId, String flatId, String residentId) async {
     final batch = _firestore.batch();
 
     // 1. Mark Lease as ended
@@ -67,7 +69,16 @@ class FirestoreLeaseRepository implements LeaseRepository {
     final flatRef = _firestore.collection('flats').doc(flatId);
     batch.update(flatRef, {
       'status': 'vacant',
-      'currentLeaseId': FieldValue.delete(), // Remove the field or set null
+      'currentLeaseId': FieldValue.delete(),
+      'residentId': FieldValue.delete(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    // 3. Clear Resident Assignment
+    final userRef = _firestore.collection('users').doc(residentId);
+    batch.update(userRef, {
+      'assignedFlatId': FieldValue.delete(),
+      'assignedPropertyId': FieldValue.delete(),
     });
 
     await batch.commit();
