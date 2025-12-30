@@ -5,8 +5,9 @@ import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
 import '../../../../models/flat_model.dart';
 import '../../../auth/data/auth_repository.dart';
-import '../../properties/data/property_repository.dart'; // For owner ID check if needed, mostly redundant if we use auth
+import '../../properties/data/property_repository.dart'; 
 import '../data/flat_repository.dart';
+import '../../invoices/data/invoice_repository.dart';
 
 class AddEditFlatScreen extends ConsumerStatefulWidget {
   final String propertyId;
@@ -118,6 +119,13 @@ class _AddEditFlatScreenState extends ConsumerState<AddEditFlatScreen> {
         );
         await repo.updateFlat(updatedFlat);
         ref.invalidate(flatDetailsProvider(updatedFlat.id));
+        
+        // Sync Invoice
+        try {
+           await ref.read(invoiceRepositoryProvider).syncCurrentInvoice(updatedFlat);
+        } catch (e) {
+           debugPrint('Invoice Sync Failed: $e');
+        }
       }
 
       if (mounted) context.pop();

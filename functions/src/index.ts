@@ -159,3 +159,109 @@ export const bkashExecutePayment = functions.https.onCall(async (data, context) 
         throw new functions.https.HttpsError("internal", "Failed to execute payment");
     }
 });
+
+/**
+ * 4. Auto-Update/Generate Invoice on Flat Update
+ * Trigger: flats/{flatId} update
+ */
+export const onFlatUpdated = functions.firestore
+    .document("flats/{flatId}")
+    .onUpdate(async (change, context) => {
+        const newData = change.after.data();
+
+        // 1. Check if relevant fields changed & validity
+        if (!newData || newData.status !== 'occupied' || !newData.residentId) {
+            console.log("Flat not occupied or invalid data. Skipping invoice update.");
+            return null;
+        }
+
+        const flatId = context.params.flatId;
+        const residentId = newData.residentId;
+        const currentLeaseId = newData.currentLeaseId; // Required for InvoiceModel
+
+        // Calculate new totals
+        const rentBase = Number(newData.rentBase) || 0;
+        const utilities = newData.utilities || {};
+        let utilityTotal = 0;
+        const items = [
+            { key: "Rent", amount: rentBase }
+        ];
+
+        for (const [key, val] of Object.entries(utilities)) {
+            const amount = Number(val) || 0;
+            if (amount > 0) {
+                // Ensure key matches InvoiceItem enum/string expectation
+                items.push({ key: key, amount: amount });
+                utilityTotal += amount;
+            }
+        }
+
+        const totalAmount = rentBase + utilityTotal;
+
+        // Current Month Key (YYYY-MM)
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const monthKey = `${year}-${month}`;
+
+        // Query for existing invoice for this month
+        const invoicesRef = admin.firestore().collection("invoices");
+        const snapshot = await invoicesRef
+            .where("flatId", "==", flatId)
+            .where("monthKey", "==", monthKey)
+            .limit(1)
+            .get();
+
+        if (!snapshot.empty) {
+            // Invoice Exists - Update it if NOT paid
+            const invoiceDoc = snapshot.docs[0];
+            const invoiceData = invoiceDoc.data();
+
+            if (invoiceData.status === 'paid') {
+                console.log("Invoice already paid. Skipping update.");
+                return null;
+            }
+
+            console.log(`Updating existing invoice ${invoiceDoc.id} with new totals.`);
+            return invoiceDoc.ref.update({
+                items: items,
+                totalAmount: totalAmount,
+                updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            });
+        } else {
+            // Invoice Does Not Exist - Create it
+            // Only if we have necessary IDs
+            if (!currentLeaseId) {
+                console.log("Missing currentLeaseId. Cannot create invoice.");
+                return null;
+            }
+
+            console.log(`Creating new invoice for flat ${flatId}, month ${monthKey}.`);
+
+            // Due Date
+            const dueDay = newData.dueDay || 5;
+            // Create date object for due date of CURRENT month
+            // Be careful with month overflow if today is Jan 31 and we set Feb 5.
+            const dueDate = new Date(year, now.getMonth(), dueDay);
+
+            const docRef = invoicesRef.doc();
+
+            const newInvoice = {
+                id: docRef.id, // IMPORTANT: Store ID in document
+                flatId: flatId,
+                propertyId: newData.propertyId,
+                residentId: residentId,
+                ownerId: newData.ownerId,
+                leaseId: currentLeaseId,
+                monthKey: monthKey,
+                items: items,
+                totalAmount: totalAmount,
+                status: "due",
+                dueDate: admin.firestore.Timestamp.fromDate(dueDate),
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                // updatedAt: admin.firestore.FieldValue.serverTimestamp(), // Optional
+            };
+
+            return docRef.set(newInvoice);
+        }
+    });

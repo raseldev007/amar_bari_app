@@ -13,6 +13,7 @@ abstract class InvoiceRepository {
   Future<void> markAsPaid(String invoiceId, double amount);
   Future<void> sendReminder(String invoiceId, String tenantId, String monthKey);
   Future<void> createInvoice(InvoiceModel invoice);
+  Future<void> syncCurrentInvoice(FlatModel flat);
 }
 
 class FirestoreInvoiceRepository implements InvoiceRepository {
@@ -189,6 +190,72 @@ class FirestoreInvoiceRepository implements InvoiceRepository {
     json['items'] = invoice.items.map((e) => e.toJson()).toList();
     
     await docRef.set(json);
+  }
+
+  @override
+  Future<void> syncCurrentInvoice(FlatModel flat) async {
+    // Only proceed if occupied
+    if (flat.status != 'occupied' || flat.residentId == null) return;
+    
+    final currentMonthKey = DateFormat('yyyy-MM').format(DateTime.now());
+    
+    // Find existing invoice
+    final snapshot = await _firestore
+        .collection('invoices')
+        .where('flatId', isEqualTo: flat.id)
+        .where('monthKey', isEqualTo: currentMonthKey)
+        .limit(1)
+        .get();
+
+    // Prepare Items
+    final items = <InvoiceItem>[
+      InvoiceItem(key: 'Rent', amount: flat.rentBase),
+    ];
+    double total = flat.rentBase;
+    flat.utilities.forEach((key, value) {
+      if (value > 0) {
+        total += value;
+        items.add(InvoiceItem(key: key, amount: value));
+      }
+    });
+
+    if (snapshot.docs.isNotEmpty) {
+      final doc = snapshot.docs.first;
+      final status = doc.data()['status'] as String? ?? 'due';
+      
+      if (status == 'paid') return; // Don't modify paid invoices
+
+      // Update
+      final jsonItems = items.map((e) => e.toJson()).toList();
+      await doc.reference.update({
+        'items': jsonItems,
+        'totalAmount': total,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } else {
+      // Create New
+      if (flat.currentLeaseId == null) return; // Explicit check
+
+      final now = DateTime.now();
+      final dueDate = DateTime(now.year, now.month, flat.dueDay); // Be careful of month overflow logic in Dart DateTime (it handles it, but semantic check...)
+      
+      final newInvoice = InvoiceModel(
+        id: const Uuid().v4(),
+        ownerId: flat.ownerId,
+        residentId: flat.residentId!,
+        propertyId: flat.propertyId,
+        flatId: flat.id,
+        leaseId: flat.currentLeaseId!,
+        monthKey: currentMonthKey,
+        items: items,
+        totalAmount: total,
+        dueDate: dueDate,
+        createdAt: DateTime.now(),
+        status: 'due',
+      );
+
+      await createInvoice(newInvoice);
+    }
   }
 }
 
