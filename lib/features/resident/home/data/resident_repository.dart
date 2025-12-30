@@ -34,7 +34,14 @@ abstract class ResidentRepository {
   Future<ResidentDashboardData> getDashboardData(String uid);
   Stream<List<InvoiceModel>> getInvoicesStream(String uid);
   Future<InvoiceModel?> getInvoice(String invoiceId);
+  
+  // New Stream Methods
+  Stream<UserModel?> getUserStream(String uid);
+  Stream<FlatModel?> getFlatStream(String flatId);
+  Stream<PropertyModel?> getPropertyStream(String propId);
 }
+
+
 
 class FirestoreResidentRepository implements ResidentRepository {
   final FirebaseFirestore _firestore;
@@ -131,11 +138,35 @@ class FirestoreResidentRepository implements ResidentRepository {
   }
 
   @override
+  Stream<UserModel?> getUserStream(String uid) {
+    return _firestore.collection('users').doc(uid).snapshots().map((doc) {
+      if (doc.exists) return UserModel.fromJson(doc.data()!);
+      return null;
+    });
+  }
+
+  @override
+  Stream<FlatModel?> getFlatStream(String flatId) {
+    return _firestore.collection('flats').doc(flatId).snapshots().map((doc) {
+      if (doc.exists) return FlatModel.fromJson(doc.data()!);
+      return null;
+    });
+  }
+
+  @override
+  Stream<PropertyModel?> getPropertyStream(String propId) {
+    return _firestore.collection('properties').doc(propId).snapshots().map((doc) {
+      if (doc.exists) return PropertyModel.fromJson(doc.data()!);
+      return null;
+    });
+  }
+
+  @override
   Stream<List<InvoiceModel>> getInvoicesStream(String uid) {
     return _firestore
         .collection('invoices')
         .where('tenantId', isEqualTo: uid)
-        .snapshots() // This makes it real-time
+        .snapshots() 
         .map((snapshot) {
       return snapshot.docs.map((doc) => InvoiceModel.fromJson(doc.data())).toList();
     });
@@ -146,8 +177,63 @@ final residentRepositoryProvider = Provider<ResidentRepository>((ref) {
   return FirestoreResidentRepository(FirebaseFirestore.instance);
 });
 
-final residentDashboardDataProvider = FutureProvider.family<ResidentDashboardData, String>((ref, uid) {
-  return ref.watch(residentRepositoryProvider).getDashboardData(uid);
+// Granular Stream Providers
+final residentUserStreamProvider = StreamProvider.family<UserModel?, String>((ref, uid) {
+  return ref.watch(residentRepositoryProvider).getUserStream(uid);
+});
+
+final residentFlatStreamProvider = StreamProvider.family<FlatModel?, String>((ref, flatId) {
+  return ref.watch(residentRepositoryProvider).getFlatStream(flatId);
+});
+
+final residentPropertyStreamProvider = StreamProvider.family<PropertyModel?, String>((ref, propId) {
+  return ref.watch(residentRepositoryProvider).getPropertyStream(propId);
+});
+
+// Composite Provider for Dashboard Data (Refactored to be Reactive)
+final residentDashboardDataProvider = Provider.family<AsyncValue<ResidentDashboardData>, String>((ref, uid) {
+  final userAsync = ref.watch(residentUserStreamProvider(uid));
+
+  return userAsync.when(
+    data: (user) {
+      if (user == null) {
+        return AsyncData(ResidentDashboardData(state: ResidentHomeState.notAssigned));
+      }
+
+      if (user.assignedFlatId == null || user.assignedFlatId!.isEmpty) {
+        return AsyncData(ResidentDashboardData(state: ResidentHomeState.notAssigned, user: user));
+      }
+
+      final flatAsync = ref.watch(residentFlatStreamProvider(user.assignedFlatId!));
+      return flatAsync.when(
+        data: (flat) {
+          if (flat == null) {
+             return AsyncData(ResidentDashboardData(state: ResidentHomeState.notAssigned, user: user));
+          }
+
+          final propAsync = ref.watch(residentPropertyStreamProvider(flat.propertyId));
+          return propAsync.when(
+            data: (property) {
+              // Invoices are handled by a separate stream in the UI, so we just return the structure.
+              // We return 'assignedNoInvoice' as default state, UI will upgrade it if invoices found.
+              return AsyncData(ResidentDashboardData(
+                state: ResidentHomeState.assignedNoInvoice, 
+                user: user,
+                flat: flat,
+                property: property,
+              ));
+            },
+            loading: () => const AsyncLoading(),
+            error: (e, s) => AsyncError(e, s),
+          );
+        },
+         loading: () => const AsyncLoading(),
+         error: (e, s) => AsyncError(e, s),
+      );
+    },
+    loading: () => const AsyncLoading(),
+    error: (e, s) => AsyncError(e, s),
+  );
 });
 
 final residentInvoicesStreamProvider = StreamProvider.family<List<InvoiceModel>, String>((ref, uid) {

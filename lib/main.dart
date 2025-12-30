@@ -39,11 +39,46 @@ class AmarBariApp extends ConsumerWidget { // Renamed MyApp to AmarBariApp
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
+        scaffoldBackgroundColor: Colors.transparent, // Make scaffold transparent
+        appBarTheme: const AppBarTheme(
+           backgroundColor: Colors.transparent, // Optional: make appbar transparent too? Maybe stick to default or specific color. 
+           // If we make appbar transparent, it might clash with scrolling content. 
+           // Let's keep appbar default or surface color, but maybe slightly transparent?
+           // For safety, let's just make scaffold transparent.
+           // Actually, let's keep AppBar default style which is usually surface color in M3.
+        ),
       ),
       locale: settings.locale,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       routerConfig: router,
+      builder: (context, child) {
+        return Stack(
+          children: [
+            // Global Background Layer
+            Positioned.fill(
+              child: Container(
+                color: Colors.grey[50], // Solid base color (Light Grey)
+              ),
+            ),
+            // Global Logo Layer
+            Positioned.fill(
+              child: Center(
+                child: Opacity(
+                  opacity: 0.15, // Subtle watermark
+                  child: Image.asset(
+                    'assets/images/app_logo_final.jpg',
+                    width: 200,
+                    height: 200,
+                  ),
+                ),
+              ),
+            ),
+            // The Page Content (Scaffolds are now transparent)
+            if (child != null) child,
+          ],
+        );
+      },
     );
   }
 }

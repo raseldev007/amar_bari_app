@@ -37,15 +37,6 @@ class ResidentHomeScreen extends ConsumerWidget {
             onPressed: () => context.push('/settings'),
           ),
           IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () {
-              final user = ref.read(authRepositoryProvider).currentUser;
-              if (user != null) {
-                 ref.refresh(residentInvoicesStreamProvider(user.uid));
-              }
-            },
-          ),
-          IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () => ref.read(authRepositoryProvider).signOut(),
           ),

@@ -16,10 +16,12 @@ import '../../features/owner/invoices/presentation/owner_invoice_list_screen.dar
 import '../../features/owner/invoices/presentation/add_invoice_screen.dart';
 import '../../features/owner/overview/presentation/owner_overview_screen.dart';
 import '../../features/resident/payments/presentation/submit_payment_screen.dart';
+import '../../features/resident/payments/presentation/bkash_payment_screen.dart';
 import 'package:amar_bari/features/owner/flats/data/flat_repository.dart';
 import 'package:amar_bari/features/owner/tenants/data/lease_repository.dart';
 import 'package:amar_bari/features/owner/invoices/data/invoice_repository.dart';
 import '../../models/flat_model.dart';
+import '../../models/property_model.dart';
 import '../../models/invoice_model.dart';
 import '../../features/resident/home/resident_home_screen.dart';
 import '../common_widgets/splash_screen.dart';
@@ -131,7 +133,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
            ),
            GoRoute(
              path: 'add_property',
-             builder: (context, state) => const AddEditPropertyScreen(),
+             builder: (context, state) => AddEditPropertyScreen(property: state.extra as PropertyModel?),
            ),
            GoRoute(
              path: 'property/:propertyId',
@@ -142,6 +144,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
                GoRoute(
                  path: 'add_flat',
                  builder: (context, state) => AddEditFlatScreen(
+                    flat: state.extra as FlatModel?,
                    propertyId: state.pathParameters['propertyId']!,
                  ),
                ),
@@ -251,8 +254,18 @@ final goRouterProvider = Provider<GoRouter>((ref) {
              builder: (context, state) => const SupportScreen(requestType: 'service'),
            ),
            GoRoute(
-             path: 'profile',
-             builder: (context, state) => const ResidentProfileScreen(),
+              path: 'profile',
+              builder: (context, state) => const ResidentProfileScreen(),
+            ),
+            GoRoute(
+              path: 'bkash_payment',
+              builder: (context, state) {
+                final extra = state.extra as Map<String, dynamic>;
+                return BkashPaymentScreen(
+                  invoiceId: extra['invoiceId'] as String,
+                  amount: extra['amount'] as double,
+                );
+              },
             ),
         ],
       ),

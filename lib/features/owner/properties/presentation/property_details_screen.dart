@@ -41,7 +41,53 @@ class PropertyDetailsScreen extends ConsumerWidget {
     final property = properties?.firstWhere((p) => p.id == propertyId, orElse: () => PropertyModel(id: '', ownerId: '', name: 'Loading...', address: '', city: '', createdAt: DateTime.now()));
 
     return Scaffold(
-      appBar: AppBar(title: Text(property?.name ?? 'Property Details')),
+      appBar: AppBar(
+        title: Text(property?.name ?? 'Property Details'),
+        actions: [
+          if (property != null)
+            IconButton(
+              icon: const Icon(Icons.edit),
+              onPressed: () {
+                context.push('/owner/add_property', extra: property);
+              },
+            ),
+          if (property != null)
+            IconButton(
+              icon: const Icon(Icons.delete, color: Colors.red),
+              onPressed: () {
+                 showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('Delete Property?'),
+                      content: const Text('This will delete the property and all its flats. This action cannot be undone.'),
+                      actions: [
+                        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+                        ElevatedButton(
+                          onPressed: () async {
+                             Navigator.pop(context);
+                             try {
+                               await ref.read(propertyRepositoryProvider).deleteProperty(property!.id);
+                               // Ideally we should also delete all sub-collections (flats) but that is best done via Cloud Function
+                               // or batch writes. For now, we assume simple delete.
+                               if (context.mounted) {
+                                  context.pop(); // Go back to dashboard
+                               }
+                             } catch (e) {
+                               if (context.mounted) {
+                                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                               }
+                             }
+                          },
+                          style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+                          child: const Text('Delete'),
+                        )
+                      ],
+                    )
+                 );
+              },
+            ),
+        ],
+      ),
       body: Column(
         children: [
           if (property != null)

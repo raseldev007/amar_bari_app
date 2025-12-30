@@ -6,6 +6,7 @@ import '../../../../models/flat_model.dart';
 import '../../../../models/lease_model.dart';
 import '../../../auth/data/auth_repository.dart';
 import '../../../auth/data/user_repository.dart';
+import 'package:amar_bari/models/user_model.dart';
 import '../../tenants/data/lease_repository.dart';
 
 class AssignTenantScreen extends ConsumerStatefulWidget {
@@ -44,20 +45,24 @@ class _AssignTenantScreenState extends ConsumerState<AssignTenantScreen> {
       String residentId = input;
       final userRepo = ref.read(userRepositoryProvider);
       
-      if (input.contains('@')) {
-        // Assume email
-        final user = await userRepo.getUserByEmail(input);
-        if (user == null) {
-          throw 'User with email $input not found.';
-        }
-        residentId = user.uid;
+
+      
+      // Check if user is already assigned
+      // We need to fetch the full user object to check assignedFlatId if we only had the ID
+      // If we looked up by email, we have the user object.
+      // If we looked up by ID, we have the user object.
+      UserModel? targetUser;
+       if (input.contains('@')) {
+        targetUser = await userRepo.getUserByEmail(input);
       } else {
-        // Assume UID
-        final user = await userRepo.getUser(input);
-        if (user == null) {
-          throw 'User with ID $input not found.';
-        }
-        residentId = user.uid;
+        targetUser = await userRepo.getUser(input);
+      }
+      
+      if (targetUser == null) throw 'User not found';
+      residentId = targetUser.uid;
+
+      if (targetUser.assignedFlatId != null && targetUser.assignedFlatId!.isNotEmpty) {
+         throw 'This user is already assigned to another flat. A resident can only have one active lease.';
       }
 
       final leaseRepo = ref.read(leaseRepositoryProvider);

@@ -45,8 +45,48 @@ class _SubmitPaymentScreenState extends ConsumerState<SubmitPaymentScreen> {
   }
 
   Future<void> _submit() async {
+    // 1. Check for bKash Online Payment
+    if (_selectedMethod == 'bkash' && _refController.text.isEmpty && widget.invoice != null) {
+       // Online Payment Flow
+       final proceed = await showDialog<bool>(
+         context: context,
+         builder: (c) => AlertDialog(
+           title: const Text('Pay with bKash Online?'),
+           content: const Text('You will be redirected to bKash secure gateway. Or enter a Transaction ID manually to submit a manual payment.'),
+           actions: [
+             TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Manual Entry')),
+             FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Pay Online')),
+           ],
+         )
+       );
+
+       if (proceed == true) {
+          final result = await context.push(
+            '/resident/bkash_payment',
+             extra: {
+               'invoiceId': widget.invoice!.id,
+               'amount': double.tryParse(_amountController.text) ?? widget.invoice!.totalAmount,
+             }
+          );
+
+          if (result == true) {
+            // Success
+            if (mounted) {
+               context.pop();
+            }
+          }
+          return;
+       }
+    }
+
     if (_amountController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter an amount')));
+      return;
+    }
+
+    // MANDATORY PROMPT: Transaction ID is required for manual submission
+    if (_refController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter Transaction ID / Reference')));
       return;
     }
 

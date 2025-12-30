@@ -66,6 +66,26 @@ class _AddEditFlatScreenState extends ConsumerState<AddEditFlatScreen> {
       final user = ref.read(authRepositoryProvider).currentUser;
       if (user == null) throw Exception('User not logged in');
 
+      // Duplicate Check
+      final existingFlats = await ref.read(propertyFlatsProvider(widget.propertyId).future);
+      final newLabel = _labelController.text.trim();
+      
+      String normalize(String s) {
+        final i = int.tryParse(s);
+        return i != null ? i.toString() : s.trim().toLowerCase();
+      }
+      
+      final normalizedNew = normalize(newLabel);
+      
+      for (var f in existingFlats) {
+        // Skip self if editing
+        if (widget.flat != null && f.id == widget.flat!.id) continue;
+        
+        if (normalize(f.label) == normalizedNew) {
+           throw Exception('Flat "$newLabel" already exists (conflict with "${f.label}")');
+        }
+      }
+
       final repo = ref.read(flatRepositoryProvider);
       final utilities = {
         'gas': double.parse(_gasController.text),
@@ -80,7 +100,7 @@ class _AddEditFlatScreenState extends ConsumerState<AddEditFlatScreen> {
           id: const Uuid().v4(),
           propertyId: widget.propertyId,
           ownerId: user.uid,
-          label: _labelController.text.trim(),
+          label: newLabel, // Use trimmed label
           rentBase: double.parse(_rentController.text),
           dueDay: int.parse(_dueDayController.text),
           utilities: utilities,
@@ -91,18 +111,19 @@ class _AddEditFlatScreenState extends ConsumerState<AddEditFlatScreen> {
       } else {
         // Edit
         final updatedFlat = widget.flat!.copyWith(
-          label: _labelController.text.trim(),
+          label: newLabel,
           rentBase: double.parse(_rentController.text),
           dueDay: int.parse(_dueDayController.text),
           utilities: utilities,
         );
         await repo.updateFlat(updatedFlat);
+        ref.invalidate(flatDetailsProvider(updatedFlat.id));
       }
 
       if (mounted) context.pop();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: ${e.toString().replaceAll("Exception: ", "")}')));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);

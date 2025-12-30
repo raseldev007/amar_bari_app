@@ -208,15 +208,6 @@ class OwnerDashboardScreen extends ConsumerWidget {
                         onPressed: () => context.push('/settings'),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.refresh, color: Colors.white),
-                        onPressed: () {
-                          ref.invalidate(ownerInvoicesProvider);
-                          ref.invalidate(ownerPropertiesProvider);
-                          ref.invalidate(ownerRecentAssignedFlatsProvider);
-                          ref.invalidate(ownerRequestsProvider);
-                        },
-                      ),
-                      IconButton(
                         onPressed: () async {
                           await ref.read(authRepositoryProvider).signOut();
                         },

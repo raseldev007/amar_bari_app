@@ -37,16 +37,39 @@ class FlatDetailScreen extends ConsumerWidget {
               IconButton(
                 icon: const Icon(Icons.edit),
                 onPressed: () {
-                   // Navigate to Edit Flat (reusing AddEditFlatScreen)
-                   // We need to define this route properly or push directly
-                   // Route defined as 'property/:pid/flat/:fid' in router, let's use that but 
-                   // currently router points here. I need to fix router to point here for view, 
-                   // and maybe 'edit' for editing.
-                   // For now, let's just push direct or use a query param 'action=edit'
-                   // Or simple:
                    context.push('/owner/property/$propertyId/add_flat?edit=true', extra: flat); 
-                   // Wait, I mapped /flat/:flatId to AddEdit in router previously. 
-                   // I will fix router in next step to point /flat/:flatId to THIS screen.
+                },
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete, color: Colors.red),
+                onPressed: () {
+                   showDialog(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text('Delete Flat?'),
+                        content: const Text('This will permanently delete this flat. This action cannot be undone.'),
+                        actions: [
+                          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+                          ElevatedButton(
+                            onPressed: () async {
+                               Navigator.pop(context);
+                               try {
+                                 await ref.read(flatRepositoryProvider).deleteFlat(flat.id);
+                                 if (context.mounted) {
+                                   context.pop(); 
+                                 }
+                               } catch (e) {
+                                 if (context.mounted) {
+                                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                                 }
+                               }
+                            },
+                            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+                            child: const Text('Delete'),
+                          )
+                        ],
+                      )
+                   );
                 },
               )
             ],
